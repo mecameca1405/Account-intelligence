@@ -1,0 +1,116 @@
+version: "3.9"
+
+services:
+  # ── SQL Server 2022 ──────────────────────────────────────────
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ai_sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Dev_P@ssw0rd_2024!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Dev_P@ssw0rd_2024!' -Q 'SELECT 1' -No -C || exit 1" ]
+      interval: 15s
+      retries: 10
+      start_period: 30s
+    networks:
+      - ai_network
+
+  # ── DB Init: Create DB + User ─────────────────────────────────
+  db-init:
+    image: mcr.microsoft.com/mssql-tools
+    container_name: ai_dbinit
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      /bin/bash -c "
+        /opt/mssql-tools/bin/sqlcmd -S db -U sa -P 'Dev_P@ssw0rd_2024!' -C -Q \"
+          IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = 'account_intelligence_dev')
+          BEGIN
+            CREATE DATABASE account_intelligence_dev;
+          END;
+          USE account_intelligence_dev;
+          IF NOT EXISTS (SELECT name FROM sys.server_principals WHERE name = 'ai_user')
+          BEGIN
+            CREATE LOGIN ai_user WITH PASSWORD = 'Dev_P@ssw0rd_2024!';
+          END;
+          IF NOT EXISTS (SELECT name FROM sys.database_principals WHERE name = 'ai_user')
+          BEGIN
+            CREATE USER ai_user FOR LOGIN ai_user;
+            ALTER ROLE db_owner ADD MEMBER ai_user;
+          END;
+        \"
+        echo 'Database initialized successfully'
+      "
+    networks:
+      - ai_network
+    restart: on-failure
+
+  # ── Backend (FastAPI) ─────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: ai_backend
+    env_file:
+      - .env.development
+    environment:
+      DB_HOST: db
+      DB_PORT: 1433
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src/backend/app:/app/app # Hot reload in dev
+      - models_data:/app/models
+      - faiss_data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    networks:
+      - ai_network
+    restart: unless-stopped
+
+  # ── Frontend (Next.js) ────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: ai_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - ai_network
+    restart: unless-stopped
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  sqlserver_data:
+    driver: local
+  models_data:
+    driver: local
+  faiss_data:
+    driver: local
+
+# ── Networks ──────────────────────────────────────────────────
+networks:
+  ai_network:
+    driver: bridge
