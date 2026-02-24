@@ -1,0 +1,67 @@
+# ─────────────────────────────────────────────────────────────
+# Dockerfile.backend
+# Stack: Python 3.11 + uv + PostgreSQL (psycopg2)
+# Stages: base -> development -> production
+# ─────────────────────────────────────────────────────────────
+
+# ── STAGE 1: Base (Runtime Dependencies) ─────────────────────
+FROM python:3.11-slim-bookworm AS base
+
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# Install runtime library for PostgreSQL (libpq)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── STAGE 2: Development (Builder & Hot Reload) ──────────────
+FROM base AS development
+
+# Install uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Install build dependencies (required for compiling psycopg2)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency definitions
+COPY pyproject.toml uv.lock* ./
+
+# Sync dependencies into a virtual environment
+# --frozen: strict sync from lockfile
+ENV UV_COMPILE_BYTECODE=1
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project
+
+# Add virtual environment to PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Development command (Hot Reload enabled)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# ── STAGE 3: Production (Minimal Image) ──────────────────────
+FROM base AS production
+
+# Copy compiled virtual environment from development stage
+COPY --from=development /app/.venv /app/.venv
+
+# Add virtual environment to PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy application source code
+COPY src/backend/app ./app
+
+# Security: Run as non-root user
+RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+# Production command (Optimized workers, no reload)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
