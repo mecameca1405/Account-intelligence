@@ -2,6 +2,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from .config import settings
+import hashlib
 
 # Password hashing context using argon2
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -17,7 +18,7 @@ def verify_password(password: str, hashed: str) -> bool:
     return pwd_context.verify(password, hashed)
 
 
-def create_token(sub: str, role_name: str):
+def create_token(sub: str, role_name: str, token_version: int):
     """
     Create JWT token.
     `sub` is typically the user's email.
@@ -27,7 +28,9 @@ def create_token(sub: str, role_name: str):
     payload = {
         "sub": sub,
         "exp": expire,
-        "role": role_name
+        "role": role_name,
+        "token_version": token_version,
+        "type": "access"
     }
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -51,3 +54,17 @@ def verify_token(token: str) -> dict | None:
 
     except JWTError:
         return None
+    
+def create_refresh_token(sub: str):
+    expire = datetime.now(timezone.utc) + timedelta(days=7)
+
+    payload = {
+        "sub": sub,
+        "exp": expire,
+        "type": "refresh"
+    }
+
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+def hash_refresh_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()

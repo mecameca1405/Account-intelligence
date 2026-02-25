@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from datetime import datetime
 from typing import Optional
 
@@ -29,14 +29,20 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    role_id: int
     region_id: int
 
-class UserUpdate(BaseModel):
-    first_name: Optional[str]
-    last_name: Optional[str]
-    role_id: Optional[int]
-    region_id: Optional[int]
+class AdminUserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=8, max_length=72)
+    role_id: Optional[int] = None
+    region_id: Optional[int] = None
+
+class SelfUserUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    password: Optional[str] = Field(default=None, min_length=8, max_length=72)
 
 class UserRead(UserBase):
     id: int

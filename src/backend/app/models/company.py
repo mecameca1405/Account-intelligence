@@ -10,7 +10,7 @@ class Company(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(150), index=True, nullable=False)
-    domain = Column(String(100), index=True)  # e.g., 'kavak.com'
+    domain = Column(String(100), index=True, nullable=True)  # e.g., 'kavak.com'
     industry = Column(String(100))            # e.g., 'Fintech', 'Retail'
     description = Column(Text, nullable=True)
     logo_url = Column(String(500), nullable=True)
