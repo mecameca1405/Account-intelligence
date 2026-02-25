@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from .config import settings
 
-# Password hashing context using bcrypt
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context using argon2
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 
 def hash_password(password: str) -> str:
@@ -34,11 +34,20 @@ def create_token(sub: str, role_name: str):
 
 def verify_token(token: str) -> dict | None:
     """
-    Decode and verify JWT token.
-    Returns payload dict if valid, None otherwise.
+    Decode and validate JWT.
+    Returns payload if valid, None otherwise.
     """
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+
+        if payload.get("sub") is None:
+            return None
+
         return payload
+
     except JWTError:
         return None

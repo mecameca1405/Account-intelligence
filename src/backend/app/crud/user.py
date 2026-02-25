@@ -1,5 +1,7 @@
 from ..models.user import User
 from .base import CRUDBase
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 class CRUDUser(CRUDBase[User]):
 

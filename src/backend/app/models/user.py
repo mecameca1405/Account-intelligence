@@ -19,7 +19,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    role = relationship("UserRole", back_populates="users")
+    role = relationship("UserRole", back_populates="users", lazy="selectin")
     region = relationship("Region", back_populates="users")
     analyses = relationship("Analysis", back_populates="user")
     daily_priorities = relationship("DailyPriority", back_populates="user")

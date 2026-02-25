@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...dependencies.deps import get_db
@@ -9,15 +10,16 @@ from ...crud.user import user_crud
 from ...models.user_role import UserRole
 from ...models.region import Region
 from sqlalchemy import select
+from sqlalchemy import select
 
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
-
+api_router = APIRouter()
+security = HTTPBearer()
 
 # =========================
 # SIGN UP
 # =========================
-@router.post("/signup", response_model=TokenResponse)
+@api_router.post("/signup", response_model=TokenResponse)
 async def sign_up(
     data: SignUpRequest,
     db: AsyncSession = Depends(get_db)
@@ -74,7 +76,7 @@ async def sign_up(
 # =========================
 # SIGN IN
 # =========================
-@router.post("/signin", response_model=TokenResponse)
+@api_router.post("/signin", response_model=TokenResponse)
 async def sign_in(
     data: SignInRequest,
     db: AsyncSession = Depends(get_db)
@@ -99,7 +101,7 @@ async def sign_in(
 
     access_token = create_token(
         sub=user.email,
-        role_name=user.role_obj.name
+        role_name=user.role.name
     )
 
     return TokenResponse(access_token=access_token)

@@ -1,11 +1,8 @@
 from ..db.database import sessionLocal
 
 
-def get_db():
-    db = sessionLocal()
-    try:
+async def get_db():
+    async with sessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 
