@@ -24,7 +24,8 @@ class RegionSchema(BaseModel):
 # ------------------------------
 class UserBase(BaseModel):
     email: str
-    full_name: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
 
 class UserCreate(UserBase):
     password: str
@@ -32,7 +33,8 @@ class UserCreate(UserBase):
     region_id: int
 
 class UserUpdate(BaseModel):
-    full_name: Optional[str]
+    first_name: Optional[str]
+    last_name: Optional[str]
     role_id: Optional[int]
     region_id: Optional[int]
 

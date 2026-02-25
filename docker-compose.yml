@@ -23,8 +23,6 @@ services:
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
     environment:
-      # Connection string for SQLAlchemy + psycopg2
-      DATABASE_URL: "postgresql+psycopg2://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
       PYTHONPATH: /app/app
 
   # ── Database Service (PostgreSQL) ─────────────────────────────

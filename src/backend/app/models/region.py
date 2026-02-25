@@ -14,4 +14,4 @@ class Region(Base):
     name = Column(String(100))               # Latin America, North America
 
     # Relationships
-    users = relationship("User", back_populates="region_obj")
+    users = relationship("User", back_populates="region")
