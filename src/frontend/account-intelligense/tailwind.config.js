@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  darkmode: "class",
+  darkMode: "class",
   theme: {
     extend: {
       colors: {
@@ -13,6 +13,7 @@ export default {
         brand: {
           DEFAULT: "var(--brand-primary)",
           dark: "var(--brand-dark)",
+          accent: "var(--brand-accent)",
         },
 
         text: {
@@ -29,15 +30,8 @@ export default {
 
         secondaryBtn: "var(--btn-secondary)",
         border: "var(--border)",
-
-        brand: {
-          DEFAULT: "var(--brand-primary)",
-          dark: "var(--brand-dark)",
-          accent: "var(--brand-accent)",
-        },
       },
     },
   },
   plugins: [],
-}
-
+};
