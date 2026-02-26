@@ -9,3 +9,4 @@ from .product_category import ProductCategory
 from .recommendation import Recommendation
 from .sales_speech import SalesSpeech
 from .insight import Insight
+from .user_session import UserSession

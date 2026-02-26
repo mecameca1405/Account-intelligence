@@ -24,6 +24,7 @@ security = HTTPBearer()
 @api_router.post("/signup", response_model=TokenResponse)
 async def sign_up(
     data: SignUpRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -64,7 +65,20 @@ async def sign_up(
         token_version=user.token_version
     )
 
-    return TokenResponse(access_token=access_token)
+    refresh_token = create_refresh_token(user.email)
+
+    session = UserSession(
+        user_id=user.id,
+        refresh_token_hash=hash_refresh_token(refresh_token),
+        device=request.headers.get("user-agent"),
+        ip_address=request.client.host,
+        expires_at=datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_EXPIRE_DAYS),
+    )
+
+    db.add(session)
+    await db.commit()
+
+    return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 
 
 # =========================
@@ -153,7 +167,7 @@ async def refresh(
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
 
-    new_access = create_token(payload["sub"], user.role.name)
+    new_access = create_token(payload["sub"], user.role.name, token_version=user.token_version)
     new_refresh = create_refresh_token(payload["sub"])
 
     new_session = UserSession(

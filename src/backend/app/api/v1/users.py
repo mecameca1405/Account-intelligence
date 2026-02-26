@@ -26,7 +26,75 @@ async def get_me(current_user = Depends(get_current_user)):
         region=current_user.region.name,
     )
 
-@api_router.patch("/users/{user_id}")
+@api_router.patch("/me")
+async def update_me(
+    data: SelfUserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user)
+):
+    print(current_user.role.name)
+    password_changed = False
+    security_sensitive_change = False
+
+    update_data = data.model_dump(exclude_unset=True)
+    update_data["updated_at"] = datetime.now(timezone.utc)
+    update_data["updated_by"] = current_user.id
+
+    # Password change
+    if "password" in update_data:
+        update_data["hashed_password"] = hash_password(update_data.pop("password"))
+        password_changed = True
+        security_sensitive_change = True
+
+    # Email change affects JWT sub
+    if "email" in update_data and update_data["email"] != current_user.email:
+        security_sensitive_change = True
+
+    # Fields self cannot modify
+    forbidden_fields = {"role_id", "region_id", "id", "created_at", "token_version"}
+    for field in forbidden_fields:
+        update_data.pop(field, None)
+
+    updated_user = await user_crud.update(db, current_user, update_data)
+
+    # Access token invalidation
+    if security_sensitive_change:
+        updated_user.token_version += 1
+        await db.commit()
+
+    # Refresh token invalidation
+    if password_changed or security_sensitive_change:
+        await revoke_all_user_sessions(db, current_user.id)
+
+    return {"message": "Profile updated successfully"}
+
+
+@api_router.delete("/{user_id}")
+async def soft_delete_user(
+    user_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(require_role("admin"))
+):
+    result = await db.execute(
+        select(User).where(
+            User.id == user_id,
+            User.is_deleted == False
+        )
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_deleted = True
+    user.deleted_at = datetime.now(timezone.utc)
+    user.updated_by = current_user.id
+
+    await db.commit()
+
+    return {"message": "User soft deleted"}
+
+@api_router.patch("/{user_id}")
 async def update_user_admin(
     user_id: int,
     data: AdminUserUpdate,
@@ -88,70 +156,3 @@ async def update_user_admin(
     return {"message": "User updated successfully"}
 
 
-@api_router.patch("/users/me")
-async def update_me(
-    data: SelfUserUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user)
-):
-
-    password_changed = False
-    security_sensitive_change = False
-
-    update_data = data.model_dump(exclude_unset=True)
-    update_data["updated_at"] = datetime.now(timezone.utc)
-    update_data["updated_by"] = current_user.id
-
-    # Password change
-    if "password" in update_data:
-        update_data["hashed_password"] = hash_password(update_data.pop("password"))
-        password_changed = True
-        security_sensitive_change = True
-
-    # Email change affects JWT sub
-    if "email" in update_data and update_data["email"] != current_user.email:
-        security_sensitive_change = True
-
-    # Fields self cannot modify
-    forbidden_fields = {"role_id", "region_id", "id", "created_at", "token_version"}
-    for field in forbidden_fields:
-        update_data.pop(field, None)
-
-    updated_user = await user_crud.update(db, current_user, update_data)
-
-    # Access token invalidation
-    if security_sensitive_change:
-        updated_user.token_version += 1
-        await db.commit()
-
-    # Refresh token invalidation
-    if password_changed or security_sensitive_change:
-        await revoke_all_user_sessions(db, current_user.id)
-
-    return {"message": "Profile updated successfully"}
-
-
-@api_router.delete("/users/{user_id}")
-async def soft_delete_user(
-    user_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(require_role("admin"))
-):
-    result = await db.execute(
-        select(User).where(
-            User.id == user_id,
-            User.is_deleted == False
-        )
-    )
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.is_deleted = True
-    user.deleted_at = datetime.now(timezone.utc)
-    user.updated_by = current_user.id
-
-    await db.commit()
-
-    return {"message": "User soft deleted"}
