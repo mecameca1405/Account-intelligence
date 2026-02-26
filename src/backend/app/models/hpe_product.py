@@ -20,5 +20,5 @@ class HPEProduct(Base):
     product_url = Column(String(500))
 
     # Relationships
-    category = relationship("Category", back_populates="products")
+    category = relationship("ProductCategory", back_populates="products")
     recommendations = relationship("Recommendation", back_populates="product")

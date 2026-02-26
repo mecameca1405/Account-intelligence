@@ -15,4 +15,4 @@ class UserRole(Base):
     description = Column(Text, nullable=True)
 
     # Relationships
-    users = relationship("User", back_populates="role_obj")
+    users = relationship("User", back_populates="role")
