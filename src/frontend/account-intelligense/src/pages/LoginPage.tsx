@@ -1,6 +1,42 @@
-import React from "react";
+import React, { useState } from "react";
 
-export default function LoginPage() {
+export default function LoginPage({ onNavigate }: { onNavigate?: (page: "login" | "signup" | "dashboard") => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) {
+      setError("Por favor, ingresa tu email y contraseña.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || "Error al iniciar sesión");
+      }
+
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("refresh_token", data.refresh_token);
+      if (onNavigate) onNavigate("dashboard");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-white text-slate-900">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -57,7 +93,12 @@ export default function LoginPage() {
               Please login to your account.
             </p>
 
-            <form className="mt-10 space-y-6">
+            <form className="mt-10 space-y-6" onSubmit={handleLogin}>
+              {error && (
+                <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-slate-700">
                   Email
@@ -67,6 +108,8 @@ export default function LoginPage() {
                   autoComplete="email"
                   placeholder=""
                   className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none ring-0 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
@@ -79,12 +122,15 @@ export default function LoginPage() {
                   autoComplete="current-password"
                   placeholder=""
                   className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none ring-0 placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
 
                 <div className="mt-2 flex justify-end">
                   <a
                     href="#"
                     className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+                    onClick={(e) => e.preventDefault()}
                   >
                     Setup or Reset Password
                   </a>
@@ -92,10 +138,11 @@ export default function LoginPage() {
               </div>
 
               <button
-                type="button"
-                className="mt-2 inline-flex w-56 items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                type="submit"
+                disabled={loading}
+                className="mt-2 inline-flex w-56 items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                Login
+                {loading ? "Iniciando..." : "Login"}
               </button>
 
               <div className="pt-6">
@@ -111,6 +158,10 @@ export default function LoginPage() {
                   <a
                     href="#"
                     className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (onNavigate) onNavigate("signup");
+                    }}
                   >
                     Sign up
                   </a>
