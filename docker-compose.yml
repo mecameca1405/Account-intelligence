@@ -48,6 +48,53 @@ services:
       interval: 5s
       retries: 5
       start_period: 10s
+  
+  redis:
+    image: redis:7-alpine
+    container_name: ai_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - ai_network
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: development
+    container_name: ai_celery_worker
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - redis
+      - db
+    command: >
+      celery -A app.core.celery_app.celery worker
+      --loglevel=info
+      --concurrency=2
+    networks:
+      - ai_network
+    volumes:
+      - ./src/backend/app:/app/app
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+    environment:
+      PYTHONPATH: /app/app
+
+
+  flower:
+    image: mher/flower
+    container_name: ai_flower
+    restart: unless-stopped
+    command: celery --broker=redis://redis:6379/0 flower
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+    networks:
+      - ai_network
 
 networks:
   ai_network:

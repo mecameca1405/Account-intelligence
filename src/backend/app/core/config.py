@@ -47,9 +47,15 @@ class Settings(BaseSettings):
     FAISS_INDEX_PATH: str = "/app/data/faiss_index"
 
     # ── Tavily Web Search ────────────────────────────────────────────────────
-    TAVILY_API_KEY: str = ""
+    TAVILY_API_KEY: str
     TAVILY_MAX_RESULTS: int = 5
+    TAVILY_SEARCH_DEPTH: str = "advanced"
+    TAVILY_MAX_QUERIES: str = 3
     REQUEST_TIMEOUT_SECONDS: int = 15
+
+    # ── Celery ────────────────────────────────────────────────────
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
 
     model_config = SettingsConfigDict(
         env_file = ".env",

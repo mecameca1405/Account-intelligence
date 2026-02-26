@@ -22,3 +22,4 @@ class HPEProduct(Base):
     # Relationships
     category = relationship("ProductCategory", back_populates="products")
     recommendations = relationship("Recommendation", back_populates="product")
+    embeddings = relationship("ProductEmbedding", back_populates="product", cascade="all, delete-orphan")
