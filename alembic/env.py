@@ -5,8 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.core.config import settings
-from app.models import analysis, company, daily_priority, hpe_product, insight, product_category, recommendation, region, sales_speech, user, user_role
+from app.models import analysis, company, daily_priority, hpe_product, insight, product_category, recommendation, region, sales_speech, user, user_role, user_session
 from app.db.database import Base, engine
 
 # this is the Alembic Config object, which provides
@@ -18,11 +17,6 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-database_url = settings.DATABASE_URL
-if database_url is None:
-    raise ValueError("No DATABASE_URL found in settings")
-
-config.set_main_option("sqlalchemy.url", database_url)
 
 # add your model's MetaData object here
 # for 'autogenerate' support

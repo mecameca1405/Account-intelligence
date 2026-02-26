@@ -9,4 +9,4 @@ class ProductCategory(Base):
     name = Column(String(100), unique=True)
     description = Column(Text, nullable=True)
 
-    products = relationship("Product", back_populates="category")
+    products = relationship("HPEProduct", back_populates="category")
