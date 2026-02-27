@@ -37,6 +37,9 @@ class Analysis(Base):
     celery_task_id = Column(String(255), nullable=True)
     error_message = Column(Text, nullable=True)
     
+    error_stage = Column(String(50), nullable=True)
+    error_message = Column(Text, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="analyses")
     company = relationship("Company", back_populates="analyses")

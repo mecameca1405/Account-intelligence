@@ -34,11 +34,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # ── Azure OpenAI ──────────────────────────────────────────────────────────
-    AZURE_OPENAI_API_KEY: str = "dummykey"
-    AZURE_OPENAI_ENDPOINT: str = "dummyendpoint"  # e.g. https://<resource>.openai.azure.com/
-    AZURE_OPENAI_API_VERSION: str = "2024-02-01"
-    AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o"  # nombre del deployment en Azure
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT: str = "text-embedding-3-small"
+
+    GEMINI_API_KEY: str
+    GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
     MAX_TOKENS: int = 1024
     TEMPERATURE: float = 0.7
 
