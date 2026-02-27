@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # ── Azure OpenAI ──────────────────────────────────────────────────────────
-
+    GEMINI_LLM_MODEL: str
     GEMINI_API_KEY: str
     GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
     MAX_TOKENS: int = 1024
@@ -48,8 +48,13 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: str
     TAVILY_MAX_RESULTS: int = 5
     TAVILY_SEARCH_DEPTH: str = "advanced"
-    TAVILY_MAX_QUERIES: str = 3
+    TAVILY_MAX_QUERIES: int = 3
     REQUEST_TIMEOUT_SECONDS: int = 15
+
+
+    # ── Pinecone ────────────────────────────────────────────────────
+    PINECONE_API_KEY: str
+    PINECONE_INDEX_NAME: str
 
     # ── Celery ────────────────────────────────────────────────────
     CELERY_BROKER_URL: str
