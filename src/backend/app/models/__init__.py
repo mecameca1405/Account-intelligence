@@ -10,3 +10,7 @@ from .recommendation import Recommendation
 from .sales_speech import SalesSpeech
 from .insight import Insight
 from .user_session import UserSession
+from .industry import Industry
+from .insight_source import InsightSource
+from .research_document import ResearchDocument
+from . sales_strategy import SalesStrategy

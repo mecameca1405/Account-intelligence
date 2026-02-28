@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Boolean, Text, ForeignKey
+from sqlalchemy import Column, Integer, Boolean, Text, ForeignKey, Float
 from ..db.database import Base
 from sqlalchemy.orm import relationship
 
@@ -14,9 +14,16 @@ class Recommendation(Base):
     
     match_percentage = Column(Integer)  # e.g., 89
     reasoning = Column(Text)            # Why AI selected this product
+
+    confidence_score = Column(Float)
     
+    llm_rank_position = Column(Integer, nullable=True)
+
+    final_score = Column(Float)
+    priority_rank = Column(Integer)
+
     # User Feedback (Requirement: 'Thumbs up/down')
-    is_accepted = Column(Boolean, nullable=True)  # Null=No Action, True=Liked, False=Disliked
+    is_accepted = Column(Boolean, nullable=False, default=False)  # Null=No Action, True=Liked, False=Disliked
     
     # Relationships
     insight = relationship("Insight", back_populates="recommendations")

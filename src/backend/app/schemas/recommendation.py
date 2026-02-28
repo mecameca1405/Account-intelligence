@@ -1,20 +1,15 @@
 from pydantic import BaseModel
-from typing import Optional
 
-class RecommendationBase(BaseModel):
-    match_score: Optional[int]
-    reasoning: Optional[str]
-    is_accepted: Optional[bool]
+class RecommendationAccept(BaseModel):
+    is_accepted: bool
 
-class RecommendationCreate(RecommendationBase):
-    insight_id: int
-    product_id: int
-
-class RecommendationUpdate(RecommendationBase):
-    pass
-
-class RecommendationRead(RecommendationBase):
+class RecommendationResponse(BaseModel):
     id: int
     product_id: int
+    match_percentage: float
+    confidence_score: float
+    is_accepted: bool
 
-    model_config = dict(from_attributes=True)
+
+class RecommendationUpdate(BaseModel):
+    is_accepted: bool

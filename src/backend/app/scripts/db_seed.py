@@ -11,7 +11,7 @@ from ..models.region import Region
 
 
 async def seed():
-    async with sessionLocal() as db:  # your sessionmaker
+    async with sessionLocal() as db:
         db.add_all([
             UserRole(name="admin", description="System administrator"),
             UserRole(name="manager", description="Regional manager"),

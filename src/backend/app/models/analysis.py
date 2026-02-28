@@ -15,6 +15,7 @@ class Analysis(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
     company_id = Column(Integer, ForeignKey("companies.id"))
     
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
@@ -32,9 +33,17 @@ class Analysis(Base):
     summary_financial = Column(Text, nullable=True)
     summary_tech_stack = Column(Text, nullable=True)
     summary_strategy = Column(Text, nullable=True)
+
+    celery_task_id = Column(String(255), nullable=True)
+    error_message = Column(Text, nullable=True)
     
+    error_stage = Column(String(50), nullable=True)
+    error_message = Column(Text, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="analyses")
     company = relationship("Company", back_populates="analyses")
     insights = relationship("Insight", back_populates="analysis", cascade="all, delete-orphan")
     speeches = relationship("SalesSpeech", back_populates="analysis", cascade="all, delete-orphan")
+    research_documents = relationship("ResearchDocument", back_populates="analysis", cascade="all, delete-orphan")
+    sales_strategy = relationship("SalesStrategy", back_populates="analysis", cascade="all, delete-orphan", uselist=False)

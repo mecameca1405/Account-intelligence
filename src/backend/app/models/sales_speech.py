@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, DateTime, Text, ForeignKey, String, JSON
+from sqlalchemy import Column, Integer, DateTime, Text, ForeignKey, String, JSON, Boolean
 from ..db.database import Base
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -15,6 +15,7 @@ class SalesSpeech(Base):
     version = Column(Integer, default=1)
     content = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_current = Column(Boolean, default=True)
     
     # Configuration used to generate this speech
     tone = Column(String(50))   # 'Formal', 'Consultative'

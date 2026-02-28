@@ -42,6 +42,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Add virtual environment to PATH
 ENV PATH="/app/.venv/bin:$PATH"
 
+COPY ./src/backend/app /app/app
+COPY ./alembic /app/alembic
+COPY ./alembic.ini /app/alembic.ini
+
 # Development command (Hot Reload enabled)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 

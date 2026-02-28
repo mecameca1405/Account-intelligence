@@ -16,11 +16,9 @@ class Insight(Base):
     description = Column(Text, nullable=False)
     category = Column(String(100))  # Finance, Operations, Security
     severity = Column(String(50), default=InsightSeverity.MEDIUM)
-    
-    # Source attribution (Critical for 'Explainable AI')
-    source_url = Column(String(500), nullable=True)
-    source_snippet = Column(Text, nullable=True)
+    card_size = Column(String)
     
     # Relationships
     analysis = relationship("Analysis", back_populates="insights")
     recommendations = relationship("Recommendation", back_populates="insight", cascade="all, delete-orphan")
+    sources = relationship("InsightSource", back_populates="insight", cascade="all, delete-orphan")

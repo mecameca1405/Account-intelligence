@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     API_PREFIX: str = "/api/v1"
 
-    # ── Database (SQL Server) ─────────────────────────────────────────────────
+    # ── Database (PostgreSQL) ─────────────────────────────────────────────────
     DB_HOST: str = "db"
     DB_PORT: int
     DB_NAME: str
@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
 
     DATABASE_URL: str
+    SYNC_DATABASE_URL: str
 
     # ── JWT ───────────────────────────────────────────────────────────────────
     SECRET_KEY: str
@@ -34,11 +35,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # ── Azure OpenAI ──────────────────────────────────────────────────────────
-    AZURE_OPENAI_API_KEY: str = "dummykey"
-    AZURE_OPENAI_ENDPOINT: str = "dummyendpoint"  # e.g. https://<resource>.openai.azure.com/
-    AZURE_OPENAI_API_VERSION: str = "2024-02-01"
-    AZURE_OPENAI_DEPLOYMENT: str = "gpt-4o"  # nombre del deployment en Azure
-    AZURE_OPENAI_EMBEDDING_DEPLOYMENT: str = "text-embedding-3-small"
+    GEMINI_LLM_MODEL: str
+    GEMINI_API_KEY: str
+    GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
     MAX_TOKENS: int = 1024
     TEMPERATURE: float = 0.7
 
@@ -47,9 +46,20 @@ class Settings(BaseSettings):
     FAISS_INDEX_PATH: str = "/app/data/faiss_index"
 
     # ── Tavily Web Search ────────────────────────────────────────────────────
-    TAVILY_API_KEY: str = ""
+    TAVILY_API_KEY: str
     TAVILY_MAX_RESULTS: int = 5
+    TAVILY_SEARCH_DEPTH: str = "advanced"
+    TAVILY_MAX_QUERIES: int = 3
     REQUEST_TIMEOUT_SECONDS: int = 15
+
+
+    # ── Pinecone ────────────────────────────────────────────────────
+    PINECONE_API_KEY: str
+    PINECONE_INDEX_NAME: str
+
+    # ── Celery ────────────────────────────────────────────────────
+    CELERY_BROKER_URL: str
+    CELERY_RESULT_BACKEND: str
 
     model_config = SettingsConfigDict(
         env_file = ".env",
