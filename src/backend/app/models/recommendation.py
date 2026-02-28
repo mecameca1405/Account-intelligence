@@ -17,6 +17,8 @@ class Recommendation(Base):
 
     confidence_score = Column(Float)
     
+    llm_rank_position = Column(Integer, nullable=True)
+
     # User Feedback (Requirement: 'Thumbs up/down')
     is_accepted = Column(Boolean, nullable=True)  # Null=No Action, True=Liked, False=Disliked
     
