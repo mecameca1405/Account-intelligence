@@ -7,14 +7,32 @@ import {
     type SetStateAction,
   } from "react";
   import AppShell from "../../components/layout/AppShell";
+  import {
+    Search,
+    Plus,
+    ArrowUp,
+    ChevronDown,
+    MoreHorizontal,
+    Zap,
+    Check,
+    PanelLeft,
+    PanelRight,
+  } from "lucide-react";
   
   /* ===================== TYPES ===================== */
   
-  type HistoryItem = {
+  type Message = {
     id: string;
-    companyName: string; // desde URL (o extra)
-    domain: string; // hostname sin www
-    whenISO: string; // fecha ISO
+    role: "user" | "assistant";
+    text: string;
+    tsISO: string;
+  };
+  
+  type ChatItem = {
+    id: string;
+    companyName: string;
+    domain: string;
+    whenISO: string; // última actividad
     initial: string;
     color: string;
     analysisType: string;
@@ -22,21 +40,17 @@ import {
     url?: string;
     companyNameExtra?: string;
     industry?: string;
-  };
-  
-  type SubmissionPayload = {
-    source: "main" | "additional";
-    analysisType: string;
-    urlOrName?: string;
-    companyName?: string;
-    industry?: string;
+    messages: Message[];
   };
   
   type InputSource = "main" | "additional" | null;
   
   /* ===================== HELPERS ===================== */
   
-  // ✅ URL validation helper (acepta "empresa.com" y normaliza a https://empresa.com)
+  function uid() {
+    return (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`) as string;
+  }
+  
   function validateUrl(raw: string): { ok: boolean; normalized?: string; error?: string } {
     const v = raw.trim();
     if (!v) return { ok: false, error: "Ingresa una URL válida." };
@@ -46,18 +60,15 @@ import {
     try {
       const u = new URL(withScheme);
   
-      // Solo http/https
       if (u.protocol !== "http:" && u.protocol !== "https:") {
         return { ok: false, error: "Solo se permiten URLs http o https." };
       }
   
-      // Host con punto para evitar textos random
       const host = u.hostname ?? "";
       if (!host.includes(".") || host.startsWith(".") || host.endsWith(".")) {
         return { ok: false, error: "La URL debe incluir un dominio válido (ej. empresa.com)." };
       }
   
-      // No espacios
       if (/\s/.test(v)) return { ok: false, error: "La URL no puede contener espacios." };
   
       return { ok: true, normalized: u.toString() };
@@ -68,12 +79,10 @@ import {
   
   function extractCompanyFromUrl(normalizedUrl: string) {
     const u = new URL(normalizedUrl);
-    const host = u.hostname.replace(/^www\./i, ""); // quita www
+    const host = u.hostname.replace(/^www\./i, "");
     const first = host.split(".")[0] || host;
   
-    const pretty = first
-      .replace(/[-_]+/g, " ")
-      .replace(/\b\w/g, (m) => m.toUpperCase());
+    const pretty = first.replace(/[-_]+/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
   
     return { companyName: pretty, domain: host };
   }
@@ -114,10 +123,8 @@ import {
   
   export default function AccountProfile() {
     const [query, setQuery] = useState("");
-    const [submittedQuery, setSubmittedQuery] = useState<string>(""); // compat
     const [popupOpen, setPopupOpen] = useState(false);
     const [analysisType, setAnalysisType] = useState("Análisis Completo");
-    const [started, setStarted] = useState(false);
   
     // ✅ Info adicional
     const [extraCompanyName, setExtraCompanyName] = useState("");
@@ -126,37 +133,75 @@ import {
     // ✅ Exclusividad (pero con switch)
     const [inputSource, setInputSource] = useState<InputSource>(null);
   
-    const [submittedPayload, setSubmittedPayload] = useState<SubmissionPayload | null>(null);
-  
     // ✅ Error del campo principal (URL)
     const [urlError, setUrlError] = useState<string | null>(null);
+  
+    // ✅ Minimizar sidebar
+    const SIDEBAR_KEY = "hpe_profile360_sidebar_collapsed_v2";
+    const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+      try {
+        return localStorage.getItem(SIDEBAR_KEY) === "1";
+      } catch {
+        return false;
+      }
+    });
+  
+    useEffect(() => {
+      try {
+        localStorage.setItem(SIDEBAR_KEY, sidebarCollapsed ? "1" : "0");
+      } catch {
+        // ignore
+      }
+    }, [sidebarCollapsed]);
+  
+    // ✅ Chats (historial + mensajes) y chat activo
+    const CHATS_KEY = "hpe_profile360_chats_v1";
+    const ACTIVE_KEY = "hpe_profile360_active_chat_v1";
+  
+    const [chats, setChats] = useState<ChatItem[]>(() => {
+      try {
+        const raw = localStorage.getItem(CHATS_KEY);
+        return raw ? (JSON.parse(raw) as ChatItem[]) : [];
+      } catch {
+        return [];
+      }
+    });
+  
+    const [activeChatId, setActiveChatId] = useState<string | null>(() => {
+      try {
+        return localStorage.getItem(ACTIVE_KEY);
+      } catch {
+        return null;
+      }
+    });
+  
+    const activeChat = chats.find((c) => c.id === activeChatId) ?? null;
+  
+    // persist chats
+    useEffect(() => {
+      try {
+        localStorage.setItem(CHATS_KEY, JSON.stringify(chats));
+      } catch {
+        // ignore
+      }
+    }, [chats]);
+  
+    // persist active chat id
+    useEffect(() => {
+      try {
+        if (activeChatId) localStorage.setItem(ACTIVE_KEY, activeChatId);
+        else localStorage.removeItem(ACTIVE_KEY);
+      } catch {
+        // ignore
+      }
+    }, [activeChatId]);
   
     const popupRef = useRef<HTMLDivElement | null>(null);
     const plusBtnRef = useRef<HTMLButtonElement | null>(null);
     const inputRef = useRef<HTMLInputElement | null>(null);
     const companyRef = useRef<HTMLInputElement | null>(null);
   
-    const composerDocked = started;
-  
-    /* ---------- HISTORIAL PERSISTENTE ---------- */
-    const HISTORY_KEY = "hpe_profile360_history_v1";
-  
-    const [history, setHistory] = useState<HistoryItem[]>(() => {
-      try {
-        const raw = localStorage.getItem(HISTORY_KEY);
-        return raw ? (JSON.parse(raw) as HistoryItem[]) : [];
-      } catch {
-        return [];
-      }
-    });
-  
-    useEffect(() => {
-      try {
-        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-      } catch {
-        // ignore
-      }
-    }, [history]);
+    const composerDocked = !!activeChatId;
   
     const mainValue = query.trim();
     const additionalHasValue = extraCompanyName.trim().length > 0 || extraIndustry.trim().length > 0;
@@ -164,17 +209,15 @@ import {
     const mainLocked = inputSource === "additional";
     const additionalLocked = inputSource === "main";
   
-    // ✅ Validación en vivo: solo si hay texto
     const mainValidation = mainValue ? validateUrl(mainValue) : { ok: false };
   
-    // ✅ Habilitar envío:
     const canSend =
       (inputSource === "main" && mainValue.length > 0 && mainValidation.ok) ||
       (inputSource === "additional" && additionalHasValue) ||
       (inputSource === null &&
-        ((mainValue.length > 0 && mainValidation.ok) || (mainValue.length === 0 && additionalHasValue)));
+        ((mainValue.length > 0 && mainValidation.ok) ||
+          (mainValue.length === 0 && additionalHasValue)));
   
-    // ✅ Switchers
     const switchToMain = () => {
       setInputSource("main");
       setExtraCompanyName("");
@@ -197,7 +240,7 @@ import {
       requestAnimationFrame(() => inputRef.current?.focus());
     };
   
-    // ✅ Close popup only on click outside
+    // close popup outside
     useEffect(() => {
       function onDown(e: MouseEvent) {
         if (!popupOpen) return;
@@ -219,13 +262,57 @@ import {
       if (composerDocked) requestAnimationFrame(() => inputRef.current?.focus());
     }, [composerDocked]);
   
+    function pushMessage(chatId: string, msg: Message) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chatId
+            ? {
+                ...c,
+                whenISO: new Date().toISOString(),
+                messages: [...c.messages, msg],
+              }
+            : c
+        )
+      );
+    }
+  
+    const handleNewChat = () => {
+      const chatId = uid();
+      const nowISO = new Date().toISOString();
+  
+      const newChat: ChatItem = {
+        id: chatId,
+        companyName: "Nuevo chat",
+        domain: "",
+        whenISO: nowISO,
+        initial: "N",
+        color: "bg-black",
+        analysisType,
+        source: "main",
+        messages: [],
+      };
+  
+      setChats((prev) => [newChat, ...prev]);
+      setActiveChatId(chatId);
+  
+      setQuery("");
+      setExtraCompanyName("");
+      setExtraIndustry("");
+      setInputSource(null);
+      setUrlError(null);
+      setPopupOpen(false);
+  
+      requestAnimationFrame(() => inputRef.current?.focus());
+    };
+  
     const handleSend = () => {
       const source: "main" | "additional" | null =
         inputSource ?? (mainValue ? "main" : additionalHasValue ? "additional" : null);
   
       if (!source) return;
   
-      let payload: SubmissionPayload;
+      const usingPlaceholderChat =
+        !!activeChat && activeChat.companyName === "Nuevo chat" && activeChat.messages.length === 0;
   
       if (source === "main") {
         if (!mainValue) return;
@@ -233,68 +320,266 @@ import {
         const v = validateUrl(mainValue);
         if (!v.ok) {
           setUrlError(v.error ?? "URL inválida.");
-          return; // ⛔️ NO deja enviar al bubble
+          return;
         }
   
         const normalized = v.normalized!;
         const { companyName, domain } = extractCompanyFromUrl(normalized);
   
-        payload = { source, analysisType, urlOrName: normalized };
+        if (usingPlaceholderChat) {
+          const chatId = activeChat!.id;
+          const nowISO = new Date().toISOString();
   
-        // ✅ agrega al historial (persistente)
-        const item: HistoryItem = {
-          id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`) as string,
-          companyName,
-          domain,
-          whenISO: new Date().toISOString(),
-          initial: (companyName[0] || "?").toUpperCase(),
-          color: pickColorFromString(domain),
-          analysisType,
-          source,
-          url: normalized,
-        };
+          setChats((prev) =>
+            prev.map((c) =>
+              c.id === chatId
+                ? {
+                    ...c,
+                    companyName,
+                    domain,
+                    initial: (companyName[0] || "?").toUpperCase(),
+                    color: pickColorFromString(domain),
+                    analysisType,
+                    source: "main",
+                    url: normalized,
+                    whenISO: nowISO,
+                  }
+                : c
+            )
+          );
   
-        setHistory((prev) => [item, ...prev]);
+          const userMsg: Message = { id: uid(), role: "user", text: normalized, tsISO: nowISO };
+          const assistantMsg: Message = {
+            id: uid(),
+            role: "assistant",
+            text: [
+              `Entrada elegida: URL / Campo principal`,
+              `Tipo de análisis: ${analysisType}`,
+              `URL: ${normalized}`,
+              ``,
+              `Aquí aparecerán insights, señales y recomendaciones.`,
+            ].join("\n"),
+            tsISO: nowISO,
+          };
   
-        setSubmittedPayload(payload);
-        setSubmittedQuery(normalized);
-        setStarted(true);
+          pushMessage(chatId, userMsg);
+          pushMessage(chatId, assistantMsg);
+  
+          setQuery("");
+          setUrlError(null);
+          return;
+        }
+  
+        const shouldAppendToActive =
+          !!activeChat &&
+          activeChat.source === "main" &&
+          activeChat.domain === domain &&
+          activeChat.analysisType === analysisType;
+  
+        if (!activeChat || !shouldAppendToActive) {
+          const chatId = uid();
+          const nowISO = new Date().toISOString();
+  
+          const newChat: ChatItem = {
+            id: chatId,
+            companyName,
+            domain,
+            whenISO: nowISO,
+            initial: (companyName[0] || "?").toUpperCase(),
+            color: pickColorFromString(domain),
+            analysisType,
+            source: "main",
+            url: normalized,
+            messages: [],
+          };
+  
+          setChats((prev) => [newChat, ...prev]);
+          setActiveChatId(chatId);
+  
+          const userMsg: Message = { id: uid(), role: "user", text: normalized, tsISO: nowISO };
+          const assistantMsg: Message = {
+            id: uid(),
+            role: "assistant",
+            text: [
+              `Entrada elegida: URL / Campo principal`,
+              `Tipo de análisis: ${analysisType}`,
+              `URL: ${normalized}`,
+              ``,
+              `Aquí aparecerán insights, señales y recomendaciones.`,
+            ].join("\n"),
+            tsISO: nowISO,
+          };
+  
+          queueMicrotask(() => {
+            pushMessage(chatId, userMsg);
+            pushMessage(chatId, assistantMsg);
+          });
+        } else {
+          const chatId = activeChat.id;
+          const nowISO = new Date().toISOString();
+  
+          const userMsg: Message = { id: uid(), role: "user", text: normalized, tsISO: nowISO };
+          const assistantMsg: Message = {
+            id: uid(),
+            role: "assistant",
+            text: [
+              `Entrada elegida: URL / Campo principal`,
+              `Tipo de análisis: ${analysisType}`,
+              `URL: ${normalized}`,
+              ``,
+              `Aquí aparecerán insights, señales y recomendaciones.`,
+            ].join("\n"),
+            tsISO: nowISO,
+          };
+  
+          pushMessage(chatId, userMsg);
+          pushMessage(chatId, assistantMsg);
+        }
   
         setQuery("");
         setUrlError(null);
         return;
       }
   
-      // additional
       if (!additionalHasValue) return;
   
-      payload = {
-        source,
-        analysisType,
-        companyName: extraCompanyName.trim() || undefined,
-        industry: extraIndustry.trim() || undefined,
-      };
-  
       const companyNameExtra = extraCompanyName.trim() || "Sin nombre";
+      const industry = extraIndustry.trim() || "";
   
-      const item: HistoryItem = {
-        id: (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random()}`) as string,
-        companyName: companyNameExtra,
-        domain: "",
-        whenISO: new Date().toISOString(),
-        initial: (companyNameExtra[0] || "?").toUpperCase(),
-        color: pickColorFromString(companyNameExtra),
-        analysisType,
-        source,
-        companyNameExtra,
-        industry: extraIndustry.trim() || undefined,
-      };
+      if (usingPlaceholderChat) {
+        const chatId = activeChat!.id;
+        const nowISO = new Date().toISOString();
   
-      setHistory((prev) => [item, ...prev]);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  companyName: companyNameExtra,
+                  domain: "",
+                  initial: (companyNameExtra[0] || "?").toUpperCase(),
+                  color: pickColorFromString(companyNameExtra),
+                  analysisType,
+                  source: "additional",
+                  companyNameExtra,
+                  industry: industry || undefined,
+                  whenISO: nowISO,
+                }
+              : c
+          )
+        );
   
-      setSubmittedPayload(payload);
-      setSubmittedQuery(mainValue);
-      setStarted(true);
+        const userMsg: Message = {
+          id: uid(),
+          role: "user",
+          text: `Empresa: ${companyNameExtra}${industry ? `\nIndustria: ${industry}` : ""}`,
+          tsISO: nowISO,
+        };
+  
+        const assistantMsg: Message = {
+          id: uid(),
+          role: "assistant",
+          text: [
+            `Entrada elegida: Información Adicional`,
+            `Tipo de análisis: ${analysisType}`,
+            `Empresa: ${companyNameExtra}`,
+            `Industria: ${industry || "(no especificada)"}`,
+            ``,
+            `Aquí aparecerán insights, señales y recomendaciones.`,
+          ].join("\n"),
+          tsISO: nowISO,
+        };
+  
+        pushMessage(chatId, userMsg);
+        pushMessage(chatId, assistantMsg);
+  
+        setExtraCompanyName("");
+        setExtraIndustry("");
+        setUrlError(null);
+        return;
+      }
+  
+      const shouldAppendToActive =
+        !!activeChat &&
+        activeChat.source === "additional" &&
+        (activeChat.companyNameExtra ?? activeChat.companyName) === companyNameExtra &&
+        (activeChat.industry ?? "") === industry &&
+        activeChat.analysisType === analysisType;
+  
+      if (!activeChat || !shouldAppendToActive) {
+        const chatId = uid();
+        const nowISO = new Date().toISOString();
+  
+        const newChat: ChatItem = {
+          id: chatId,
+          companyName: companyNameExtra,
+          domain: "",
+          whenISO: nowISO,
+          initial: (companyNameExtra[0] || "?").toUpperCase(),
+          color: pickColorFromString(companyNameExtra),
+          analysisType,
+          source: "additional",
+          companyNameExtra,
+          industry: industry || undefined,
+          messages: [],
+        };
+  
+        setChats((prev) => [newChat, ...prev]);
+        setActiveChatId(chatId);
+  
+        const userMsg: Message = {
+          id: uid(),
+          role: "user",
+          text: `Empresa: ${companyNameExtra}${industry ? `\nIndustria: ${industry}` : ""}`,
+          tsISO: nowISO,
+        };
+  
+        const assistantMsg: Message = {
+          id: uid(),
+          role: "assistant",
+          text: [
+            `Entrada elegida: Información Adicional`,
+            `Tipo de análisis: ${analysisType}`,
+            `Empresa: ${companyNameExtra}`,
+            `Industria: ${industry || "(no especificada)"}`,
+            ``,
+            `Aquí aparecerán insights, señales y recomendaciones.`,
+          ].join("\n"),
+          tsISO: nowISO,
+        };
+  
+        queueMicrotask(() => {
+          pushMessage(chatId, userMsg);
+          pushMessage(chatId, assistantMsg);
+        });
+      } else {
+        const chatId = activeChat.id;
+        const nowISO = new Date().toISOString();
+  
+        const userMsg: Message = {
+          id: uid(),
+          role: "user",
+          text: `Empresa: ${companyNameExtra}${industry ? `\nIndustria: ${industry}` : ""}`,
+          tsISO: nowISO,
+        };
+  
+        const assistantMsg: Message = {
+          id: uid(),
+          role: "assistant",
+          text: [
+            `Entrada elegida: Información Adicional`,
+            `Tipo de análisis: ${analysisType}`,
+            `Empresa: ${companyNameExtra}`,
+            `Industria: ${industry || "(no especificada)"}`,
+            ``,
+            `Aquí aparecerán insights, señales y recomendaciones.`,
+          ].join("\n"),
+          tsISO: nowISO,
+        };
+  
+        pushMessage(chatId, userMsg);
+        pushMessage(chatId, assistantMsg);
+      }
   
       setExtraCompanyName("");
       setExtraIndustry("");
@@ -304,34 +589,135 @@ import {
     return (
       <AppShell activeKey="profile360">
         <div className="flex h-[calc(100dvh-140px)] gap-6">
-          {/* Historial */}
-          <section className="w-[360px] shrink-0 rounded-2xl border border-border bg-app shadow-sm h-full flex flex-col min-h-0">
-            <div className="border-b border-border px-5 py-4">
-              <div className="text-lg font-semibold">Historial de análisis</div>
-              <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2">
-                <span className="text-text-muted">
-                  <SearchIcon />
-                </span>
-                <input
-                  placeholder="Buscar cuenta..."
-                  className="w-full bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
-                />
-              </div>
+          {/* Sidebar / Historial */}
+          <section
+            className={[
+              "shrink-0 rounded-2xl border border-border bg-app shadow-sm h-full flex flex-col min-h-0 transition-all duration-300",
+              sidebarCollapsed ? "w-[96px]" : "w-[360px]",
+            ].join(" ")}
+          >
+            {/* Header */}
+            <div
+              className={[
+                "border-b border-border",
+                sidebarCollapsed ? "px-2 py-3" : "px-5 py-4",
+              ].join(" ")}
+            >
+              {!sidebarCollapsed ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="text-lg font-semibold">Historial de análisis</div>
+                    <button
+                      type="button"
+                      onClick={() => setSidebarCollapsed(true)}
+                      className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card text-text-secondary hover:bg-hover"
+                      aria-label="Minimizar"
+                      title="Minimizar"
+                    >
+                      <PanelLeft size={18} />
+                    </button>
+                  </div>
+  
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleNewChat}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-sm font-semibold text-text-primary hover:bg-hover"
+                    >
+                      <span className="grid h-6 w-6 place-items-center rounded-lg border border-border bg-app">
+                        <Plus size={16} />
+                      </span>
+                      Nuevo chat
+                    </button>
+                  </div>
+  
+                  <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2">
+                    <span className="text-text-muted">
+                      <Search size={16} />
+                    </span>
+                    <input
+                      placeholder="Buscar cuenta..."
+                      className="w-full bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSidebarCollapsed(false)}
+                    className="icon-btn h-10 w-10 rounded-xl border border-border bg-card text-text-secondary hover:bg-hover"
+                    aria-label="Expandir"
+                    title="Expandir"
+                    >
+                    <PanelRight className="h-[18px] w-[18px] shrink-0" />
+                    </button>
+
+  
+                    <button
+                    type="button"
+                    onClick={handleNewChat}
+                    className="icon-btn h-10 w-10 rounded-xl border border-border bg-card text-text-secondary hover:bg-hover"
+                    aria-label="Nuevo chat"
+                    title="Nuevo chat"
+                    >
+                    <Plus className="h-[18px] w-[18px] shrink-0" />
+                    </button>
+                </div>
+              )}
             </div>
   
-            <div className="min-h-0 flex-1 overflow-auto px-2 py-2">
-              {history.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-text-secondary">
-                  Aún no tienes análisis guardados. Ingresa una URL para comenzar.
-                </div>
-              ) : (
-                history.map((h) => (
+            {/* Lista de chats */}
+            <div className="min-h-0 flex-1 overflow-auto px-2 py-3">
+              {chats.map((h) => {
+                const selected = h.id === activeChatId;
+  
+                if (sidebarCollapsed) {
+                  return (
+                    <button
+                      key={h.id}
+                      onClick={() => setActiveChatId(h.id)}
+                      className={[
+                        "mx-auto mb-3 inline-flex aspect-square",
+                        "!h-16 !w-16 items-center justify-center rounded-full border transition overflow-hidden",
+                        selected
+                          ? "border-brand bg-brand-accent"
+                          : "border-border bg-card hover:bg-hover",
+                      ].join(" ")}
+                      title={`${h.companyName} • ${h.analysisType}${h.domain ? ` • ${h.domain}` : ""}`}
+                      style={{ width: 64, height: 64 }}
+                    >
+                      <span
+                        className={[
+                          "inline-flex aspect-square !h-11 !w-11 items-center justify-center rounded-full",
+                          "text-base font-bold text-white leading-none",
+                          h.color,
+                        ].join(" ")}
+                        style={{ width: 44, height: 44 }}
+                      >
+                        {h.initial}
+                      </span>
+                    </button>
+                  );
+                }
+  
+                return (
                   <button
                     key={h.id}
-                    className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-4 py-4 text-left shadow-sm hover:bg-hover"
+                    onClick={() => setActiveChatId(h.id)}
+                    className={[
+                      "flex w-full items-center gap-4 rounded-2xl border px-4 py-4 text-left shadow-sm transition",
+                      selected
+                        ? "border-brand bg-brand-accent"
+                        : "border-border bg-card hover:bg-hover",
+                    ].join(" ")}
+                    title={`${h.companyName} • ${h.analysisType}${h.domain ? ` • ${h.domain}` : ""}`}
                   >
                     <div
-                      className={`flex h-11 w-11 items-center justify-center rounded-full ${h.color} text-sm font-bold text-white`}
+                      className={[
+                        "flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-white",
+                        h.color,
+                      ].join(" ")}
                     >
                       {h.initial}
                     </div>
@@ -346,8 +732,8 @@ import {
   
                     <div className="text-xs text-text-muted">{formatWhen(h.whenISO)}</div>
                   </button>
-                ))
-              )}
+                );
+              })}
             </div>
           </section>
   
@@ -357,7 +743,7 @@ import {
             <div className="flex items-center justify-between border-b border-border px-6 py-4 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="grid h-10 w-10 place-items-center rounded-full bg-brand text-white">
-                  <BoltSmall />
+                  <Zap size={18} />
                 </div>
                 <div className="leading-tight">
                   <div className="flex items-center gap-2">
@@ -368,51 +754,43 @@ import {
                 </div>
               </div>
   
-              <button className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card text-text-secondary hover:bg-hover">
-                <DotsIcon />
-              </button>
+              <button className="icon-btn h-10 w-10 rounded-xl border border-border bg-card text-text-secondary hover:bg-hover">
+                <MoreHorizontal className="h-[18px] w-[18px] shrink-0" />
+                </button>
             </div>
   
             <div className="relative flex flex-1 min-h-0 flex-col">
               {/* Scroll area */}
               <div className="min-h-0 flex-1 overflow-auto px-8 py-8 pb-44">
-                {!started ? (
+                {!activeChat ? (
                   <div className="flex h-full flex-col items-center justify-center text-center">
                     <h2 className="text-3xl font-semibold tracking-tight">¿Con qué cuenta quieres comenzar?</h2>
                   </div>
+                ) : activeChat.messages.length === 0 ? (
+                  <div className="flex h-full flex-col items-center justify-center text-center">
+                    <h2 className="text-2xl font-semibold tracking-tight">Nuevo chat</h2>
+                    <p className="mt-2 text-sm text-text-secondary">
+                      Ingresa una URL válida o usa “Información adicional” para iniciar el análisis.
+                    </p>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
-                    <Bubble
-                      text={[
-                        `Entrada elegida: ${submittedPayload?.source === "main" ? "URL / Campo principal" : "Información Adicional"}`,
-                        `Tipo de análisis: ${submittedPayload?.analysisType ?? analysisType}`,
-                        submittedPayload?.source === "main"
-                          ? `URL/Nombre: ${submittedPayload?.urlOrName ?? ""}`
-                          : `Empresa: ${submittedPayload?.companyName ?? "(no especificada)"}\nIndustria: ${
-                              submittedPayload?.industry ?? "(no especificada)"
-                            }`,
-                        ``,
-                        `Aquí aparecerán insights, señales y recomendaciones.`,
-                      ]
-                        .filter(Boolean)
-                        .join("\n")}
-                    />
+                  <div className="space-y-3">
+                    {activeChat.messages.map((m) =>
+                      m.role === "assistant" ? (
+                        <AssistantBubble key={m.id} text={m.text} />
+                      ) : (
+                        <UserBubble key={m.id} text={m.text} />
+                      )
+                    )}
                   </div>
                 )}
               </div>
   
-              {/* ✅ Composer wrapper */}
-              <div
-                className={[
-                  "z-20 w-full",
-                  composerDocked
-                    ? "sticky bottom-0 border-t border-border bg-app px-8 py-5"
-                    : "absolute inset-x-0 top-1/2 -translate-y-1/2",
-                ].join(" ")}
-              >
-                <div className={composerDocked ? "w-full" : "mx-auto w-full max-w-[1100px] px-4 sm:px-8"}>
+              {/* Composer */}
+              <div className="z-20 w-full sticky bottom-0 border-t border-border bg-app px-8 py-5">
+                <div className="w-full">
                   <Composer
-                    mode={composerDocked ? "bottom" : "center"}
+                    mode="bottom"
                     query={query}
                     setQuery={setQuery}
                     popupOpen={popupOpen}
@@ -450,13 +828,26 @@ import {
   
   /* ---------- UI helpers ---------- */
   
-  function Bubble({ text }: { text: string }) {
+  function AssistantBubble({ text }: { text: string }) {
     return (
       <div
         className="max-w-[760px] rounded-2xl bg-card px-4 py-3 text-sm text-text-primary border border-border"
         style={{ whiteSpace: "pre-wrap" }}
       >
         {text}
+      </div>
+    );
+  }
+  
+  function UserBubble({ text }: { text: string }) {
+    return (
+      <div className="flex w-full justify-end">
+        <div
+          className="max-w-[760px] rounded-2xl bg-brand-accent px-4 py-3 text-sm text-text-primary border border-border"
+          style={{ whiteSpace: "pre-wrap" }}
+        >
+          {text}
+        </div>
       </div>
     );
   }
@@ -516,7 +907,12 @@ import {
     urlError: string | null;
     setUrlError: Dispatch<SetStateAction<string | null>>;
   }) {
-    const options = ["Análisis Completo", "Detectar Oportunidades", "Mapear Stack Actual", "Analizar Madurez Digital"];
+    const options = [
+      "Análisis Completo",
+      "Detectar Oportunidades",
+      "Mapear Stack Actual",
+      "Analizar Madurez Digital",
+    ];
   
     const industries = [
       "Tecnología",
@@ -542,17 +938,16 @@ import {
           ].join(" ")}
         >
           <div className="relative">
-            <button
-              ref={plusBtnRef}
-              type="button"
-              onClick={() => setPopupOpen((v) => !v)}
-              className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-app text-text-secondary hover:bg-hover"
-              aria-label="Opciones"
+          <button
+            ref={plusBtnRef}
+            type="button"
+            onClick={() => setPopupOpen((v) => !v)}
+            className="icon-btn h-10 w-10 rounded-xl border border-border bg-app text-text-secondary hover:bg-hover"
+            aria-label="Opciones"
             >
-              <PlusIcon />
+            <Plus className="h-[18px] w-[18px] shrink-0" />
             </button>
   
-            {/* ✅ POPUPS responsive */}
             {popupOpen && (
               <div
                 ref={popupRef}
@@ -564,15 +959,8 @@ import {
                 ].join(" ")}
               >
                 {/* Popup 1: Tipo de análisis */}
-                <div
-                  className={[
-                    "w-full",
-                    "rounded-2xl border border-border bg-app p-3 shadow-xl",
-                    "max-h-[320px] overflow-auto",
-                  ].join(" ")}
-                >
+                <div className="w-full rounded-2xl border border-border bg-app p-3 shadow-xl max-h-[320px] overflow-auto">
                   <div className="px-2 pb-2 text-xs font-semibold text-text-muted">Tipo de Análisis</div>
-  
                   <div className="space-y-2">
                     {options.map((opt) => {
                       const selected = analysisType === opt;
@@ -597,7 +985,7 @@ import {
                           <span>{opt}</span>
                           {selected ? (
                             <span className="grid h-6 w-6 place-items-center rounded-full bg-brand text-white">
-                              <CheckIcon />
+                              <Check size={16} />
                             </span>
                           ) : (
                             <span className="h-6 w-6" />
@@ -608,9 +996,9 @@ import {
                   </div>
                 </div>
   
-                {/* Popup 2: Información adicional (solo si query vacío) */}
+                {/* Popup 2: Información adicional */}
                 {isQueryEmpty && (
-                  <div className={["w-full", "rounded-2xl border border-border bg-app p-4 shadow-xl"].join(" ")}>
+                  <div className="w-full rounded-2xl border border-border bg-app p-4 shadow-xl">
                     <div className="mb-3 flex items-center justify-between gap-3">
                       <div className="text-sm font-semibold text-text-primary">Información Adicional:</div>
   
@@ -635,7 +1023,6 @@ import {
                     <div className="space-y-3">
                       <div>
                         <label className="mb-1 block text-xs font-semibold text-text-muted">Empresa (opcional)</label>
-  
                         <input
                           ref={companyRef}
                           value={extraCompanyName}
@@ -661,7 +1048,6 @@ import {
   
                       <div>
                         <label className="mb-1 block text-xs font-semibold text-text-muted">Industria (opcional)</label>
-  
                         <div className="relative">
                           <select
                             value={extraIndustry}
@@ -687,7 +1073,7 @@ import {
                           </select>
   
                           <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-text-muted">
-                            <ChevronDownIcon />
+                            <ChevronDown size={18} />
                           </span>
                         </div>
                       </div>
@@ -702,7 +1088,6 @@ import {
             )}
           </div>
   
-          {/* ✅ CTA cuando main está bloqueado */}
           {mainLocked && (
             <button
               type="button"
@@ -713,7 +1098,6 @@ import {
             </button>
           )}
   
-          {/* ✅ INPUT PRINCIPAL (URL) */}
           <input
             ref={inputRef}
             value={query}
@@ -727,7 +1111,6 @@ import {
               setExtraCompanyName("");
               setExtraIndustry("");
   
-              // ✅ Valida en vivo y muestra error
               const trimmed = next.trim();
               if (!trimmed) {
                 setUrlError(null);
@@ -744,7 +1127,9 @@ import {
               }
             }}
             placeholder={
-              mainLocked ? "Bloqueado: estás usando Información Adicional" : "Ingresa la URL o nombre de la empresa a analizar..."
+              mainLocked
+                ? "Bloqueado: estás usando Información Adicional"
+                : "Ingresa la URL o nombre de la empresa a analizar..."
             }
             className={[
               "h-10 min-w-0 flex-1 bg-transparent text-sm outline-none",
@@ -753,21 +1138,20 @@ import {
             ].join(" ")}
           />
   
-          <button
+            <button
             type="button"
             onClick={onSend}
             disabled={!canSend}
             className={[
-              "grid h-10 w-10 place-items-center rounded-full text-white",
-              canSend ? "bg-brand hover:bg-brand-dark" : "bg-border cursor-not-allowed",
+                "icon-btn h-10 w-10 rounded-full text-white",
+                canSend ? "bg-brand hover:bg-brand-dark" : "bg-border cursor-not-allowed",
             ].join(" ")}
             aria-label="Enviar"
-          >
-            <ArrowUpIcon />
-          </button>
+            >
+            <ArrowUp className="h-[18px] w-[18px] shrink-0" />
+            </button>
         </div>
   
-        {/* ✅ ERROR DE URL */}
         {!mainLocked && query.trim().length > 0 && urlError && (
           <div className="mt-2 rounded-xl border border-border bg-card px-3 py-2 text-xs text-text-secondary">
             <span className="font-semibold text-text-primary">URL inválida:</span> {urlError}
@@ -793,86 +1177,16 @@ import {
                 </button>
               </span>
             ) : (
-              <span className="rounded-full border border-border bg-card px-2 py-1 text-[11px]">Usando: Auto</span>
+              <span className="rounded-full border border-border bg-card px-2 py-1 text-[11px]">
+                Usando: Auto
+              </span>
             )}
   
             <span className="inline-flex items-center gap-1">
-              <BoltSmall /> Insight AI
+              <Zap size={14} /> Insight AI
             </span>
           </span>
         </div>
       </div>
-    );
-  }
-  
-  /* ---------- Icons inline (sin lucide) ---------- */
-  function SearchIcon() {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M10.5 3a7.5 7.5 0 1 0 4.7 13.3l3.5 3.5 1.4-1.4-3.5-3.5A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"
-          fill="currentColor"
-        />
-      </svg>
-    );
-  }
-  function PlusIcon() {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  function ArrowUpIcon() {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M12 19V5m0 0 6 6M12 5 6 11"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  function ChevronDownIcon() {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M6 9l6 6 6-6"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  function DotsIcon() {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M6 12h.01M12 12h.01M18 12h.01" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  function BoltSmall() {
-    return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" fill="currentColor" />
-      </svg>
-    );
-  }
-  function CheckIcon() {
-    return (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M20 6 9 17l-5-5"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
     );
   }

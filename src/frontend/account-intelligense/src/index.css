@@ -128,3 +128,13 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* === Icon buttons: center icons perfectly === */
+.icon-btn {
+  @apply inline-grid place-items-center;
+  line-height: 0; /* evita baseline raro */
+}
+
+.icon-btn > svg {
+  display: block; /* evita offset por inline svg */
+}
