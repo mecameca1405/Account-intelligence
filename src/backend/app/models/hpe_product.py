@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Boolean
 from ..db.database import Base
 from sqlalchemy.orm import relationship
 
@@ -19,7 +19,10 @@ class HPEProduct(Base):
     business_value = Column(Text)   # e.g., "Reduces CapEx by moving to consumption model"
     product_url = Column(String(500))
 
+    is_simulated = Column(Boolean, default=True)
+
+    embedding_hash = Column(String(64), nullable=True)
+
     # Relationships
     category = relationship("ProductCategory", back_populates="products")
     recommendations = relationship("Recommendation", back_populates="product")
-    embeddings = relationship("ProductEmbedding", back_populates="product", cascade="all, delete-orphan")

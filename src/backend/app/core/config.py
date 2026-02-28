@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     APP_PORT: int = 8000
     API_PREFIX: str = "/api/v1"
 
-    # ── Database (SQL Server) ─────────────────────────────────────────────────
+    # ── Database (PostgreSQL) ─────────────────────────────────────────────────
     DB_HOST: str = "db"
     DB_PORT: int
     DB_NAME: str
@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     DB_PASSWORD: str
 
     DATABASE_URL: str
+    SYNC_DATABASE_URL: str
 
     # ── JWT ───────────────────────────────────────────────────────────────────
     SECRET_KEY: str

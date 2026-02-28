@@ -26,3 +26,19 @@ class InsightRead(InsightBase):
     recommendations: List[RecommendationRead] = []
 
     model_config = dict(from_attributes=True)
+
+
+
+
+class InsightItem(BaseModel):
+    title: str
+    description: str
+    category: str
+    severity: str
+    tech_intensity: int
+    operational_complexity: int
+    financial_pressure: int
+
+
+class InsightOutput(BaseModel):
+    insights: List[InsightItem]

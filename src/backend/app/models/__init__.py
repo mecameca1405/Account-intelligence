@@ -12,5 +12,4 @@ from .insight import Insight
 from .user_session import UserSession
 from .industry import Industry
 from .insight_source import InsightSource
-from .product_embedding import ProductEmbedding
 from .research_document import ResearchDocument

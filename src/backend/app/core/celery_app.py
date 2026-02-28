@@ -2,10 +2,16 @@ from celery import Celery
 from ..core.config import settings
 
 celery = Celery(
-    "eridani_ai",
+    "HPE_Account_Intelligence",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
 )
+
+from ..services.ai.tasks import product_seed_task
+from ..services.ai.tasks import product_index_task
+from ..services.ai.tasks import research_task
+from ..services.ai.tasks import insight_task
+from ..services.ai.tasks import recommendation_task
 
 celery.conf.update(
     task_track_started=True,
@@ -14,4 +20,4 @@ celery.conf.update(
     worker_max_tasks_per_child=50,
 )
 
-celery.autodiscover_tasks(["app.tasks"])
+celery.conf.task_default_queue = "default"

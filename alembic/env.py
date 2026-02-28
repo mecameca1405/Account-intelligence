@@ -5,7 +5,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.models import analysis, company, daily_priority, hpe_product, insight, product_category, recommendation, region, sales_speech, user, user_role, user_session, industry, insight_source, product_embedding, research_document
+from app.models import analysis, company, daily_priority, hpe_product, insight, product_category, recommendation, region, sales_speech, user, user_role, user_session, industry, insight_source, research_document
 from app.db.database import Base, engine
 
 # this is the Alembic Config object, which provides
