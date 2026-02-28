@@ -4,11 +4,9 @@ type NavItem = { key: string; label: string; icon: React.ReactNode; active?: boo
 
 const nav: NavItem[] = [
   { key: "daily", label: "Análisis Diario", icon: <GridIcon /> },
-  { key: "accounts", label: "Cuentas", icon: <TableIcon /> },
-  { key: "insights", label: "Insights", icon: <BulbIcon /> },
   { key: "profile360", label: "Perfil de Cuenta 360°", icon: <Circle360Icon />, active: true },
+  { key: "insights", label: "Insights", icon: <BulbIcon /> },
   { key: "recs", label: "Recomendaciones", icon: <MailIcon /> },
-  { key: "history", label: "Historial del Analisis", icon: <ClockIcon /> },
 ];
 
 const settingsNav: NavItem[] = [
