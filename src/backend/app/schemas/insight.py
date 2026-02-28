@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 from typing import Optional, List
-from .recommendation import RecommendationRead
 
 class InsightBase(BaseModel):
     title: str
@@ -21,13 +20,12 @@ class InsightUpdate(BaseModel):
     source_url: Optional[str]
     source_snippet: Optional[str]
 
-class InsightRead(InsightBase):
+
+class InsightResponse(BaseModel):
     id: int
-    recommendations: List[RecommendationRead] = []
-
-    model_config = dict(from_attributes=True)
-
-
+    title: str
+    severity: str
+    description: str
 
 
 class InsightItem(BaseModel):

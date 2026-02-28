@@ -3,14 +3,15 @@ from sqlalchemy import delete
 from ...models.insight import Insight
 from ...models.recommendation import Recommendation
 from ...models.hpe_product import HPEProduct
+from ...models.analysis import Analysis
 from ...clients.embedding_client import EmbeddingClient
 from ...clients.pinecone_client import PineconeClient
 from ...clients.llm_client import LLMClient
+
 # =========================
 # LLM Structured Output
 # =========================
 from ...schemas.ranking import RankedProduct, RankingOutput
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,61 @@ class RecommendationService:
         self.pinecone_client = PineconeClient()
         self.llm_client = LLMClient()
 
+    # --------------------------------------------------
+    # Financial Alignment (Enterprise Weighting)
+    # --------------------------------------------------
+    def _financial_alignment_weight(self, analysis: Analysis, product: HPEProduct):
+
+        # Example rule: consolidation stage favors consumption models
+        if hasattr(analysis, "financial_stage") and analysis.financial_stage == "consolidation":
+            if "greenlake" in product.name.lower():
+                return 1.1
+            return 0.9
+
+        return 1.0  # neutral
+
+    # --------------------------------------------------
+    # Strategic Fit Enterprise Formula
+    # --------------------------------------------------
+    def _calculate_strategic_fit(
+        self,
+        semantic_score: float,
+        llm_score: float,
+        severity: str,
+        analysis: Analysis,
+        product: HPEProduct,
+    ) -> float:
+
+        severity_weight_map = {
+            "low": 0.4,
+            "medium": 0.7,
+            "high": 1.0
+        }
+
+        severity_weight = severity_weight_map.get(
+            severity.lower(), 0.5
+        )
+
+        strategic_component = (analysis.strategic_score or 50) / 100
+
+        financial_weight = self._financial_alignment_weight(
+            analysis, product
+        )
+
+        # ---------------------------------------------
+        # Final Enterprise Strategic Fit Formula
+        # ---------------------------------------------
+        final_score = (
+            semantic_score * 0.4 +
+            llm_score * 0.25 +
+            severity_weight * 0.2 +
+            strategic_component * 0.15
+        )
+
+        final_score *= financial_weight
+
+        return min(1.0, round(final_score, 4))
+
     def generate_for_insight(self, insight_id: int, top_k: int = 3):
 
         logger.info(f"[Recommendation] Starting for insight_id={insight_id}")
@@ -36,6 +92,8 @@ class RecommendationService:
         if not insight:
             logger.error(f"[Recommendation] Insight {insight_id} not found")
             raise ValueError("Insight not found")
+
+        analysis = self.db.get(Analysis, insight.analysis_id)
 
         logger.info(
             f"[Recommendation] Insight title='{insight.title}' severity='{insight.severity}'"
@@ -50,7 +108,7 @@ class RecommendationService:
             )
         )
 
-        logger.info(f"[Recommendation] Cleared previous recommendations")
+        logger.info("[Recommendation] Cleared previous recommendations")
 
         query_text = f"{insight.title}. {insight.description}"
 
@@ -67,7 +125,6 @@ class RecommendationService:
 
         logger.info(f"[Recommendation] Pinecone returned {len(matches)} matches")
 
-        # Collect candidate products
         candidates = []
 
         for match in matches:
@@ -133,75 +190,97 @@ class RecommendationService:
             ranking_result = None
 
         # --------------------------------------------------
-        # Hybrid Scoring
-        # --------------------------------------------------
-        # Final Score = 
-        # 0.5 * semantic_score +
-        # 0.4 * llm_score +
-        # 0.1 * financial_weight_adjustment
+        # Hybrid + Enterprise Strategic Fit Scoring
         # --------------------------------------------------
 
-        severity_multiplier = {
-            "low": 1.0,
-            "medium": 1.1,
-            "high": 1.25
-        }.get(insight.severity.lower(), 1.0)
+        results = []
 
-        for rank_position, item in enumerate(ranking_result.ranked_products, start=1):
+        if ranking_result:
 
-            product = self.db.get(HPEProduct, item.product_id)
-            if not product:
-                continue
+            for rank_position, item in enumerate(ranking_result.ranked_products, start=1):
 
-            # Find semantic score
-            semantic_score = next(
-                c["semantic_score"]
-                for c in candidates
-                if c["product"].id == item.product_id
-            )
+                product = self.db.get(HPEProduct, item.product_id)
+                if not product:
+                    continue
 
-            llm_score = item.strategic_score / 100
+                semantic_score = next(
+                    c["semantic_score"]
+                    for c in candidates
+                    if c["product"].id == item.product_id
+                )
 
-            # --- Financial Weighting (Example: AI & Infrastructure prioritized) ---
-            financial_weight = 1.0
-            if product.category_id in [1, 5]:  # Example: Cloud & AI
-                financial_weight = 1.1
+                llm_score = item.strategic_score / 100
 
-            # --- Category misalignment penalty ---
-            category_penalty = 1.0
-            if insight.severity.lower() == "high" and product.category_id == 4:
-                # Example: networking less aligned to strategic AI insights
-                category_penalty = 0.9
+                strategic_fit = self._calculate_strategic_fit(
+                    semantic_score=semantic_score,
+                    llm_score=llm_score,
+                    severity=insight.severity,
+                    analysis=analysis,
+                    product=product
+                )
 
-            # Hybrid score calculation
-            hybrid_score = (
-                (0.5 * semantic_score) +
-                (0.4 * llm_score) +
-                (0.1 * financial_weight)
-            )
+                results.append({
+                    "product": product,
+                    "semantic_score": semantic_score,
+                    "llm_score": llm_score,
+                    "strategic_fit": strategic_fit,
+                    "reasoning": item.reasoning,
+                    "llm_rank_position": rank_position
+                })
 
-            # Apply severity boost
-            hybrid_score *= severity_multiplier
+        else:
+            # Fallback purely semantic
+            for index, c in enumerate(sorted(candidates, key=lambda x: x["semantic_score"], reverse=True), start=1):
 
-            # Apply category penalty
-            hybrid_score *= category_penalty
+                strategic_fit = self._calculate_strategic_fit(
+                    semantic_score=c["semantic_score"],
+                    llm_score=c["semantic_score"],  # fallback
+                    severity=insight.severity,
+                    analysis=analysis,
+                    product=c["product"]
+                )
 
-            final_percentage = min(100, int(hybrid_score * 100))
+                results.append({
+                    "product": c["product"],
+                    "semantic_score": c["semantic_score"],
+                    "llm_score": c["semantic_score"],
+                    "strategic_fit": strategic_fit,
+                    "reasoning": "Fallback semantic ranking.",
+                    "llm_rank_position": index
+                })
+
+        # --------------------------------------------------
+        # Final Sorting by Strategic Fit
+        # --------------------------------------------------
+
+        results_sorted = sorted(
+            results,
+            key=lambda x: x["strategic_fit"],
+            reverse=True
+        )
+
+        for priority_rank, item in enumerate(results_sorted, start=1):
+
+            final_percentage = int(item["strategic_fit"] * 100)
 
             recommendation = Recommendation(
                 insight_id=insight_id,
-                product_id=product.id,
+                product_id=item["product"].id,
                 match_percentage=final_percentage,
-                reasoning=item.reasoning,
-                confidence_score=hybrid_score,
-                llm_rank_position=rank_position
+                reasoning=item["reasoning"],
+                confidence_score=item["strategic_fit"],
+                final_score=item["strategic_fit"],
+                priority_rank=priority_rank,
+                llm_rank_position=item["llm_rank_position"]
             )
 
             self.db.add(recommendation)
 
             logger.info(
-                f"[Recommendation] Final score for product_id={product.id} "
-                f"= {final_percentage}% (rank {rank_position})"
+                f"[Recommendation] Strategic Fit for product_id={item['product'].id} "
+                f"= {final_percentage}% | priority_rank={priority_rank}"
             )
+
+        self.db.commit()
 
         logger.info(f"[Recommendation] Completed for insight_id={insight_id}")

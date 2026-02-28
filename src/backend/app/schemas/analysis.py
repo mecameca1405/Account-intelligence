@@ -1,31 +1,50 @@
+from pydantic import BaseModel, HttpUrl
+from typing import Optional, List
 from pydantic import BaseModel
-from typing import Optional, Dict, List
-from datetime import datetime
-from .insight import InsightRead
-from .speech import SpeechRead
+from .insight import InsightResponse
+from .recommendation import RecommendationResponse
+from .sales_strategy import SalesStrategyResponse
 
-class AnalysisBase(BaseModel):
-    status: Optional[str] = "processing"
-    strategic_score: Optional[int]
-    propensity_score: Optional[int]
-    score_breakdown: Optional[Dict]
-    summary_financial: Optional[str]
-    summary_tech_stack: Optional[str]
-    summary_strategy: Optional[str]
+class AnalysisCreate(BaseModel):
+    company_name: str
+    industry_id: int
+    website_url: Optional[HttpUrl] = None
 
-class AnalysisCreate(AnalysisBase):
-    user_id: int
+
+class AnalysisResponse(BaseModel):
+    analysis_id: int
+    status: str
+
+class AnalysisStatusResponse(BaseModel):
+    analysis_id: int
     company_id: int
+    status: str
+    strategic_score: Optional[float] = None
+    propensity_score: Optional[float] = None
 
-class AnalysisUpdate(AnalysisBase):
-    pass
 
-class AnalysisRead(AnalysisBase):
-    id: int
-    user_id: int
+class AnalysisListItem(BaseModel):
+    analysis_id: int
     company_id: int
-    created_at: datetime
-    insights: List[InsightRead] = []
-    speeches: List[SpeechRead] = []
+    company_name: str
+    status: str
+    strategic_score: Optional[float] = None
+    propensity_score: Optional[float] = None
 
-    model_config = dict(from_attributes=True)
+
+class AnalysisFullResponse(BaseModel):
+    analysis_id: int
+    company_id: int
+    company_name: str
+    status: str
+    strategic_score: Optional[float]
+    propensity_score: Optional[float]
+    insights: List[InsightResponse]
+    recommendations: List[RecommendationResponse]
+    sales_strategy: Optional[SalesStrategyResponse]
+
+
+class AnalysisProgressResponse(BaseModel):
+    analysis_id: int
+    status: str
+    progress_percentage: int

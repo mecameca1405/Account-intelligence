@@ -1,31 +1,30 @@
 from ....core.celery_app import celery
-from app.db.database import SyncSessionLocal
-from app.models.analysis import Analysis
-from app.models.insight import Insight
-from app.models.insight_source import InsightSource
-from app.models.enums import AnalysisStatus
-from app.models.research_document import ResearchDocument
+from ....db.database import SyncSessionLocal
+from ....models.analysis import Analysis
+from ....models.insight import Insight
+from ....models.insight_source import InsightSource
+from ....models.enums import AnalysisStatus
+from ....models.research_document import ResearchDocument
 
 from ....clients.embedding_client import EmbeddingClient
 from ....clients.pinecone_client import PineconeClient
 from ....clients.llm_client import LLMClient
 
-from pydantic import BaseModel
-from typing import List
+from ....schemas.insight import InsightItem, InsightOutput
 
+def calculate_card_size(severity: str, strategic_score: int):
 
-class InsightItem(BaseModel):
-    title: str
-    description: str
-    category: str
-    severity: str
-    tech_intensity: int
-    operational_complexity: int
-    financial_pressure: int
+    if severity.lower() == "high":
+        if strategic_score >= 80:
+            return "large"
+        return "medium"
 
+    if severity.lower() == "medium":
+        if strategic_score >= 85:
+            return "medium"
+        return "small"
 
-class InsightOutput(BaseModel):
-    insights: List[InsightItem]
+    return "small"
 
 
 @celery.task(bind=True)
@@ -121,6 +120,11 @@ def run_insights(self, analysis_id: int):
                 description=item.description,
                 category=item.category,
                 severity=item.severity,
+            )
+
+            insight.card_size = calculate_card_size(
+                severity=insight.severity,
+                strategic_score=analysis.strategic_score or 50
             )
 
             db.add(insight)

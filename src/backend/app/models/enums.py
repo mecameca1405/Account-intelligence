@@ -25,3 +25,13 @@ class AnalysisStatus(str, enum.Enum):
     STRATEGY_GENERATING = "strategy_generating"
     COMPLETED = "completed"
     FAILED = "failed"
+
+PROGRESS_MAP = {
+    AnalysisStatus.PENDING: 5,
+    AnalysisStatus.RESEARCHING: 20,
+    AnalysisStatus.INSIGHT_PROCESSING: 40,
+    AnalysisStatus.RECOMMENDING: 60,
+    AnalysisStatus.STRATEGY_GENERATING: 85,
+    AnalysisStatus.COMPLETED: 100,
+    AnalysisStatus.FAILED: 100,
+}

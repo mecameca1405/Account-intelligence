@@ -46,3 +46,4 @@ class Analysis(Base):
     insights = relationship("Insight", back_populates="analysis", cascade="all, delete-orphan")
     speeches = relationship("SalesSpeech", back_populates="analysis", cascade="all, delete-orphan")
     research_documents = relationship("ResearchDocument", back_populates="analysis", cascade="all, delete-orphan")
+    sales_strategy = relationship("SalesStrategy", back_populates="analysis", cascade="all, delete-orphan", uselist=False)

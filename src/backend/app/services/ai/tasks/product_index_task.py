@@ -3,12 +3,12 @@ from ....core.celery_app import celery
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 
-from app.core.config import settings
-from app.services.ai.product_ingestion.product_indexing_service import (
+from ....core.config import settings
+from ....services.ai.product_ingestion.product_indexing_service import (
     ProductIndexingService,
 )
-from app.clients.embedding_client import EmbeddingClient
-from app.clients.pinecone_client import PineconeClient
+from ....clients.embedding_client import EmbeddingClient
+from ....clients.pinecone_client import PineconeClient
 
 
 @celery.task(bind=True)

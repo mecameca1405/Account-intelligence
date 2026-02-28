@@ -7,7 +7,7 @@ from ....clients.tavily_client import TavilyClient
 from ....clients.embedding_client import EmbeddingClient
 from ....clients.pinecone_client import PineconeClient
 from ....models.enums import AnalysisStatus
-
+from .insight_task import run_insights
 
 @celery.task(bind=True)
 def run_research(self, analysis_id: int):
@@ -46,10 +46,15 @@ def run_research(self, analysis_id: int):
         # ─────────────────────────────────────────────
         # Strategic queries
         # ─────────────────────────────────────────────
+        if company.website_url:
+            base_query = f"site:{company.website_url}"
+        else:
+            base_query = company.name
+        
         queries = [
-            f"{company.name} financial performance 2024",
-            f"{company.name} technology stack infrastructure",
-            f"{company.name} business strategy challenges news",
+            f"{base_query} financial performance 2024",
+            f"{base_query} technology stack infrastructure",
+            f"{base_query} business strategy challenges news",
         ]
 
         for query in queries:
@@ -97,6 +102,8 @@ def run_research(self, analysis_id: int):
         # ─────────────────────────────────────────────
         analysis.status = AnalysisStatus.INSIGHT_PROCESSING
         db.commit()
+
+        run_insights.delay(analysis.id)
 
     except Exception as e:
         # ─────────────────────────────────────────────

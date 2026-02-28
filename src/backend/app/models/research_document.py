@@ -24,3 +24,4 @@ class ResearchDocument(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     analysis = relationship("Analysis", back_populates="research_documents")
+    insight_sources = relationship("InsightSource", back_populates="research_document", cascade="all, delete-orphan")

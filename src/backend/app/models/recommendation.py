@@ -19,8 +19,11 @@ class Recommendation(Base):
     
     llm_rank_position = Column(Integer, nullable=True)
 
+    final_score = Column(Float)
+    priority_rank = Column(Integer)
+
     # User Feedback (Requirement: 'Thumbs up/down')
-    is_accepted = Column(Boolean, nullable=True)  # Null=No Action, True=Liked, False=Disliked
+    is_accepted = Column(Boolean, nullable=False, default=False)  # Null=No Action, True=Liked, False=Disliked
     
     # Relationships
     insight = relationship("Insight", back_populates="recommendations")

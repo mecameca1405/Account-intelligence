@@ -1,6 +1,6 @@
 import logging
 from ....core.celery_app import celery
-from app.db.database import SyncSessionLocal
+from ....db.database import SyncSessionLocal
 from ..recommendation_service import RecommendationService
 
 logger = logging.getLogger(__name__)

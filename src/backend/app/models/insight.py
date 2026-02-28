@@ -16,6 +16,7 @@ class Insight(Base):
     description = Column(Text, nullable=False)
     category = Column(String(100))  # Finance, Operations, Security
     severity = Column(String(50), default=InsightSeverity.MEDIUM)
+    card_size = Column(String)
     
     # Relationships
     analysis = relationship("Analysis", back_populates="insights")

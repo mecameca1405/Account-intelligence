@@ -14,6 +14,7 @@ class Company(Base):
     industry_id = Column(Integer, ForeignKey("industries.id"))
     description = Column(Text, nullable=True)
     logo_url = Column(String(500), nullable=True)
+    website_url = Column(String, nullable=True)
     last_research_at = Column(DateTime(timezone=True), nullable=True)
     
     # Flag to distinguish real data from simulated data (Project Requirement 9.2)
