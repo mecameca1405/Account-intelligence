@@ -86,6 +86,14 @@ import {
   
     return { companyName: pretty, domain: host };
   }
+
+  function truncateIfUrl(text: string, max = 90) {
+    const t = text.trim();
+    const looksLikeUrl = /^https?:\/\//i.test(t) || /^[\w-]+\.[a-z]{2,}/i.test(t);
+    if (!looksLikeUrl) return text;
+    if (t.length <= max) return t;
+    return t.slice(0, max) + "…";
+  }
   
   function formatWhen(whenISO: string) {
     const d = new Date(whenISO);
@@ -831,8 +839,11 @@ import {
   function AssistantBubble({ text }: { text: string }) {
     return (
       <div
-        className="max-w-[760px] rounded-2xl bg-card px-4 py-3 text-sm text-text-primary border border-border"
-        style={{ whiteSpace: "pre-wrap" }}
+        className={[
+          "max-w-[760px] rounded-2xl bg-card px-4 py-3 text-sm text-text-primary border border-border",
+          "whitespace-pre-wrap break-words overflow-hidden",
+          "[overflow-wrap:anywhere] [word-break:break-word]",
+        ].join(" ")}
       >
         {text}
       </div>
@@ -840,13 +851,19 @@ import {
   }
   
   function UserBubble({ text }: { text: string }) {
+    const shown = truncateIfUrl(text, 110);
+  
     return (
       <div className="flex w-full justify-end">
         <div
-          className="max-w-[760px] rounded-2xl bg-brand-accent px-4 py-3 text-sm text-text-primary border border-border"
-          style={{ whiteSpace: "pre-wrap" }}
+          className={[
+            "max-w-[760px] rounded-2xl bg-brand-accent px-4 py-3 text-sm text-text-primary border border-border",
+            "whitespace-pre-wrap break-words overflow-hidden",
+            "[overflow-wrap:anywhere] [word-break:break-word]",
+          ].join(" ")}
+          title={text} // ✅ hover para ver completa
         >
-          {text}
+          {shown}
         </div>
       </div>
     );
