@@ -1,0 +1,15 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# deps primero para cache
+COPY package.json package-lock.json* ./
+RUN npm ci || npm install
+
+# código
+COPY . .
+
+EXPOSE 3000
+
+# Next dev accesible desde tu host
+CMD ["npm","run","dev","--","-H","0.0.0.0","-p","3000"]
