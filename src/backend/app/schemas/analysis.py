@@ -7,7 +7,7 @@ from .sales_strategy import SalesStrategyResponse
 
 class AnalysisCreate(BaseModel):
     company_name: str
-    industry_id: int
+    industry: str
     website_url: Optional[HttpUrl] = None
 
 
