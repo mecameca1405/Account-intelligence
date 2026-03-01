@@ -9,7 +9,80 @@ const REGIONS = [
   "Global",
 ];
 
-export default function SignUpPage() {
+const REGION_MAP: Record<string, number> = {
+  "North America": 1,
+  "Latin America": 2,
+  "EMEA": 3,
+  "APJ": 4,
+  "Global": 5,
+};
+
+export default function SignUpPage({ onNavigate }: { onNavigate?: (page: "login" | "signup" | "dashboard") => void }) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [region, setRegion] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firstName || !lastName || !region || !email || !password || !confirmPassword) {
+      setError("Por favor, llena todos los campos.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Las contraseñas no coinciden.");
+      return;
+    }
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch("http://localhost:8000/api/v1/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          password,
+          region_id: REGION_MAP[region] || 1,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        // Handle FastAPI validation errors (422) or custom errors
+        const detail = data.detail;
+        let errorMessage = "Error al registrar la cuenta";
+
+        if (typeof detail === "string") {
+          errorMessage = detail;
+        } else if (Array.isArray(detail)) {
+          // Validation errors from FastAPI are often an array
+          errorMessage = detail.map((err: any) => `${err.loc.join('.')}: ${err.msg}`).join(", ");
+        } else if (typeof detail === "object" && detail !== null) {
+          errorMessage = JSON.stringify(detail);
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      // Guardar tokens y redirigir
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("refresh_token", data.refresh_token);
+      if (onNavigate) onNavigate("dashboard");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-white text-slate-900">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -63,7 +136,12 @@ export default function SignUpPage() {
 
             <div className="mt-6 h-px w-full bg-slate-200" />
 
-            <form className="mt-8 space-y-6">
+            <form className="mt-8 space-y-6" onSubmit={handleSignup}>
+              {error && (
+                <div className="rounded-md bg-red-50 p-4 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
               <div>
                 <div className="text-sm font-semibold text-slate-800">
                   Create New Account
@@ -80,6 +158,8 @@ export default function SignUpPage() {
                     type="text"
                     autoComplete="given-name"
                     className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                   />
                 </div>
 
@@ -91,6 +171,8 @@ export default function SignUpPage() {
                     type="text"
                     autoComplete="family-name"
                     className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                   />
                 </div>
               </div>
@@ -103,8 +185,9 @@ export default function SignUpPage() {
 
                 <div className="relative mt-2">
                   <select
-                    defaultValue=""
                     className="w-full appearance-none rounded-md border border-slate-200 bg-white px-4 py-3 pr-10 text-base text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
                   >
                     <option value="" disabled>
                       Seleccionar región...
@@ -141,6 +224,8 @@ export default function SignUpPage() {
                   type="email"
                   autoComplete="email"
                   className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
 
@@ -153,6 +238,8 @@ export default function SignUpPage() {
                   type="password"
                   autoComplete="new-password"
                   className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                 />
 
                 <button
@@ -175,14 +262,17 @@ export default function SignUpPage() {
                   type="password"
                   autoComplete="new-password"
                   className="mt-2 w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                 />
               </div>
 
               <button
-                type="button"
-                className="mt-2 inline-flex w-72 items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30"
+                type="submit"
+                disabled={loading}
+                className="mt-2 inline-flex w-72 items-center justify-center rounded-full bg-emerald-600 px-6 py-3 text-base font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                Create account
+                {loading ? "Creating..." : "Create account"}
               </button>
 
               <div className="rounded-md bg-slate-100 px-6 py-4">
