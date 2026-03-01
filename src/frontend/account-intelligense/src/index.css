@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Backgrounds */
+  --bg-app: #FFFFFF;
+  --bg-page: #F5F7FA;
+  --bg-hover: #EEF2F6;
+  --bg-card: #FFFFFF;
+
+  /* Brand */
+  --brand-primary: #00B388;
+  --brand-dark: #008567;
+  --brand-accent-light: #E6F7F2;
+
+  /* Text */
+  --text-primary: #1F2933;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+  --text-disabled: #9CA3AF;
+
+  /* Buttons */
+  --btn-secondary: #374151;
+
+  /* Semantic */
+  --success: #22C55E;
+  --info: #2563EB;
+  --error: #DC2626;
+  --warning: #F59E0B;
+}
+
+.dark {
+  /* Backgrounds */
+  --bg-app: #0B0F14;
+  --bg-page: #111827;
+  --bg-hover: #273449;
+  --bg-card: #1F2937;
+
+  /* Brand */
+  --brand-primary: #00B388;
+  --brand-dark: #008567;
+
+  /* Text */
+  --text-primary: #F9FAFB;
+  --text-secondary: #676767;
+  --text-muted: #9CA3AF;
+  --text-disabled: #6B7280;
+
+  /* Buttons */
+  --btn-secondary: #374151;
+
+  /* Semantic */
+  --success: #22C55E;
+  --info: #3B82F6;
+  --error: #EF4444;
+  --warning: #FBBF24;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: none;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+button:hover {
+  border-color: var(--brand-dark);
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+/* === Icon buttons: center icons perfectly === */
+.icon-btn {
+  @apply inline-grid place-items-center;
+  line-height: 0; /* evita baseline raro */
+}
+
+.icon-btn > svg {
+  display: block; /* evita offset por inline svg */
+}
