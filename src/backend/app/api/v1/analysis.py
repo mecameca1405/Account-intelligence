@@ -27,28 +27,41 @@ async def create_analysis(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     normalized_domain = normalize_domain(str(payload.website_url) if payload.website_url else None)
 
-    # Try to find existing company by name OR domain
+    # Try to find existing company by name
     result = await db.execute(
         select(Company).where(
             Company.name.ilike(payload.company_name)
         )
     )
-
     company = result.scalar_one_or_none()
 
     if not company:
         company = Company(
             name=payload.company_name,
-            industry_id=payload.industry_id,
+            industry=payload.industry,
             website_url=normalized_domain
+
         )
         db.add(company)
         await db.commit()
         await db.refresh(company)
+    else:
+        # ✅ si ya existe, actualiza datos si vienen
+        changed = False
 
+        if payload.industry and getattr(company, "industry", None) != payload.industry:
+            company.industry = payload.industry
+            changed = True
+
+        if normalized_domain and getattr(company, "website_url", None) != normalized_domain:
+            company.website_url = normalized_domain
+            changed = True
+
+        if changed:
+            await db.commit()
+            await db.refresh(company)
 
     existing_analysis_result = await db.execute(
         select(Analysis).where(
@@ -59,7 +72,6 @@ async def create_analysis(
             )
         )
     )
-
     existing_analysis = existing_analysis_result.scalar_one_or_none()
 
     if existing_analysis:
