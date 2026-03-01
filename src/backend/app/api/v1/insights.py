@@ -9,7 +9,7 @@ from ...dependencies.deps import get_db
 from ...dependencies.deps_auth import get_current_user
 from ...models.user import User
 
-api_router = APIRouter(prefix="/insights", tags=["Insights"])
+api_router = APIRouter()
 
 
 @api_router.get("/", response_model=List[InsightResponse])

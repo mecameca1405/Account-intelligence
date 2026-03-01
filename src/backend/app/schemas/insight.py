@@ -26,6 +26,8 @@ class InsightResponse(BaseModel):
     title: str
     severity: str
     description: str
+    category: Optional[str] = None
+    card_size: Optional[str] = "medium"
 
 
 class InsightItem(BaseModel):
