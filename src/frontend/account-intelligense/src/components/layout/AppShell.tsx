@@ -12,7 +12,7 @@ import {
     Mail,
     User,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 import logoDark from "../../assets/brand/HPE_logoWhite.png";
@@ -58,7 +58,7 @@ export default function AppShell({ children }: AppShellProps) {
         setIsDark(root.classList.contains("dark"));
     };
 
-    // ✅ highlight automático por URL
+    // highlight automático por URL
     const computedNav = useMemo(() => {
         return nav.map((i) => ({ ...i, active: location.pathname === i.to }));
     }, [location.pathname]);
@@ -130,14 +130,10 @@ export default function AppShell({ children }: AppShellProps) {
                                     <IconButton title={isDark ? "Modo Light" : "Modo Dark"} onClick={toggleTheme}>
                                         <ThemeIcon isDark={isDark} />
                                     </IconButton>
+
                                     <IconButton title="Notificaciones">
                                         <BellIcon />
                                     </IconButton>
-                                    <IconButton title="Ajustes">
-                                        <GearIcon />
-                                    </IconButton>
-                                    <div className="mx-2 hidden h-8 w-px bg-border md:block" />
-                                    <div className="h-10 w-10 overflow-hidden rounded-full border border-border bg-app" />
                                 </div>
                             </div>
                         </div>
@@ -178,6 +174,9 @@ function Sidebar({
     settingsItems: NavItem[];
     isDark: boolean;
 }) {
+    const [profileOpen, setProfileOpen] = useState(false);
+    const navigate = useNavigate();
+
     return (
         <div className="flex h-full flex-col">
             <div className="px-6 pt-6 pb-4">
@@ -216,10 +215,77 @@ function Sidebar({
 
             <div className="mt-auto px-4 pb-6">
                 <div className="mt-10 text-[11px] font-semibold text-text-muted">CONFIGURACIONES</div>
+
                 <nav className="mt-3 space-y-1">
-                    {settingsItems.map((i) => (
-                        <SideItem key={i.key} label={i.label} icon={i.icon} active={i.active} to={i.to} />
-                    ))}
+                    {settingsItems.map((i) => {
+                        if (i.key === "profile") {
+                            return (
+                                <div key={i.key} className="relative">
+                                    <button
+                                        onClick={() => setProfileOpen((v) => !v)}
+                                        type="button"
+                                        className={[
+                                            "group relative w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-medium",
+                                            "transition-all duration-300 ease-out",
+                                            i.active
+                                                ? "bg-secondaryBtn text-text-primary border border-border"
+                                                : "bg-app text-text-secondary hover:bg-hover hover:text-text-primary",
+                                        ].join(" ")}
+                                    >
+                                        <span
+                                            className={[
+                                                "grid h-10 w-10 place-items-center rounded-2xl border transition-all duration-300",
+                                                i.active
+                                                    ? "border-border bg-card text-text-primary"
+                                                    : "border-border bg-card text-text-secondary group-hover:text-text-primary",
+                                            ].join(" ")}
+                                        >
+                                            {i.icon}
+                                        </span>
+
+                                        <span className="truncate">{i.label}</span>
+
+                                        <span
+                                            className={[
+                                                "ml-auto transition-transform duration-300 text-text-muted",
+                                                profileOpen ? "rotate-90" : "rotate-0",
+                                            ].join(" ")}
+                                        >
+                                            ▸
+                                        </span>
+                                    </button>
+
+                                    {/* Dropdown */}
+                                    <div
+                                        className={[
+                                            "overflow-hidden transition-all duration-300 ease-out",
+                                            profileOpen ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0",
+                                        ].join(" ")}
+                                    >
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                // 1️⃣ Limpiar sesión completa
+                                                localStorage.clear();
+                                                sessionStorage.clear();
+
+                                                // 2️⃣ (Opcional) limpiar estado global si tienes contexto
+                                                // logout(); // si tienes AuthContext
+
+                                                // 3️⃣ Redirigir al login
+                                                navigate("/login", { replace: true });
+                                            }}
+                                            className="ml-14 mt-1 w-[calc(100%-3.5rem)] rounded-xl px-3 py-2 text-left text-sm font-medium border border-border bg-card text-error hover:bg-hover transition-all duration-200"
+                                        >
+                                            Cerrar sesión
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        }
+
+                        return <SideItem key={i.key} label={i.label} icon={i.icon} active={i.active} to={i.to} />;
+                    })}
                 </nav>
             </div>
         </div>

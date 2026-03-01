@@ -595,7 +595,7 @@ import {
     };
   
     return (
-      <AppShell activeKey="profile360">
+      <AppShell>
         <div className="flex h-[calc(100dvh-140px)] gap-6">
           {/* Sidebar / Historial */}
           <section

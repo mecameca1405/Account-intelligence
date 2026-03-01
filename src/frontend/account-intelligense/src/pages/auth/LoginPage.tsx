@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 export default function LoginPage() {
   return (
@@ -106,15 +107,15 @@ export default function LoginPage() {
               </div>
 
               <div className="rounded-md bg-slate-100 px-6 py-4">
-                <p className="text-sm text-slate-700">
-                  Don&apos;t have an account?{" "}
-                  <a
-                    href="#"
-                    className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-                  >
-                    Sign up
-                  </a>
-                </p>
+              <p className="text-sm text-gray-500">
+                Don't have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="text-primary font-semibold hover:underline"
+                >
+                  Sign Up
+                </Link>
+              </p>
               </div>
             </form>
           </div>

@@ -79,7 +79,7 @@ export default function StrategicInsightsPage() {
     // useEffect(() => { fetchCards() }, [impacto, area, propension, ordenarPor, smartQuery])
 
     return (
-        <AppShell activeKey="insights">
+        <AppShell>
             {/* HEADER */}
             <div className="mt-2">
                 <h1 className="text-2xl font-bold text-text-primary">Strategic Insights</h1>

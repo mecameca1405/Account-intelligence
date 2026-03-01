@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom";
 
 const REGIONS = [
   "North America",
@@ -185,15 +186,17 @@ export default function SignUpPage() {
               </button>
 
               <div className="rounded-md bg-slate-100 px-6 py-4">
-                <p className="text-sm text-slate-700">
-                  Already have an account?{" "}
-                  <a
-                    href="#"
-                    className="font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
-                  >
-                    Log In
-                  </a>
-                </p>
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Already have an account?{" "}
+                    <Link
+                      to="/"
+                      className="text-hpe-green font-semibold hover:opacity-80 transition"
+                    >
+                      Sign In
+                    </Link>
+                  </p>
+                </div>
               </div>
             </form>
           </div>
