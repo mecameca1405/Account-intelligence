@@ -15,9 +15,10 @@ from ...schemas.recommendation import RecommendationAccept, RecommendationRespon
 from ...schemas.sales_strategy import SalesStrategyResponse
 from ...schemas.insight import InsightResponse
 from ...services.ai.tasks.research_task import run_research
-from ...models.enums import PROGRESS_MAP
+from ...models.enums import PROGRESS_MAP, AnalysisStatus
 from ...utils.url import normalize_domain
 from ...services.ai.tasks.sales_strategy_task import run_sales_strategy
+import json
 
 api_router = APIRouter()
 
@@ -50,12 +51,19 @@ async def create_analysis(
         await db.refresh(company)
 
 
+    active_statuses = [
+        AnalysisStatus.RESEARCHING,
+        AnalysisStatus.INSIGHT_PROCESSING,
+        AnalysisStatus.RECOMMENDING,
+        AnalysisStatus.STRATEGY_GENERATING,
+    ]
+    
     existing_analysis_result = await db.execute(
         select(Analysis).where(
             and_(
                 Analysis.company_id == company.id,
                 Analysis.user_id == current_user.id,
-                Analysis.status != "completed"
+                Analysis.status.in_(active_statuses)
             )
         )
     )
@@ -275,10 +283,10 @@ async def get_full_analysis(
             id=strategy.id,
             status=strategy.status,
             account_strategic_overview=strategy.account_strategic_overview,
-            priority_initiatives=strategy.priority_initiatives,
+            priority_initiatives=json.loads(strategy.priority_initiatives),
             financial_positioning=strategy.financial_positioning,
             technical_enablement_summary=strategy.technical_enablement_summary,
-            objection_handling=strategy.objection_handling,
+            objection_handling=json.loads(strategy.objection_handling),
             executive_conversation_version=strategy.executive_conversation_version,
             email_version=strategy.email_version,
         )
