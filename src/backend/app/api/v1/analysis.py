@@ -50,12 +50,20 @@ async def create_analysis(
         await db.refresh(company)
 
 
+    active_statuses = [
+        "created",
+        "researching",
+        "generating_insights",
+        "recommending",
+        "generating_strategy",
+    ]
+    
     existing_analysis_result = await db.execute(
         select(Analysis).where(
             and_(
                 Analysis.company_id == company.id,
                 Analysis.user_id == current_user.id,
-                Analysis.status != "completed"
+                Analysis.status.in_(active_statuses)
             )
         )
     )
