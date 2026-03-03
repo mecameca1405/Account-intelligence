@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { fetchWithAuth } from "../../services/api";
 
 import logoDark from "../../assets/brand/HPE_logoWhite.png";
 import logoLight from "../../assets/brand/logo_HPE.png";
@@ -30,7 +31,6 @@ const nav: NavItem[] = [
     { key: "daily", label: "Análisis Diario", icon: <GridIcon />, to: "/daily" },
     { key: "profile360", label: "Perfil de Cuenta 360°", icon: <Circle360Icon />, to: "/account-360" },
     { key: "insights", label: "Insights", icon: <BulbIcon />, to: "/insights" },
-    { key: "recs", label: "Recomendaciones", icon: <MailIcon />, to: "/recomendaciones" },
 ];
 
 const settingsNav: NavItem[] = [
@@ -264,16 +264,16 @@ function Sidebar({
                                     >
                                         <button
                                             type="button"
-                                            onClick={() => {
-                                                // 1️⃣ Limpiar sesión completa
-                                                localStorage.clear();
-                                                sessionStorage.clear();
-
-                                                // 2️⃣ (Opcional) limpiar estado global si tienes contexto
-                                                // logout(); // si tienes AuthContext
-
-                                                // 3️⃣ Redirigir al login
-                                                navigate("/login", { replace: true });
+                                            onClick={async () => {
+                                                try {
+                                                    await fetchWithAuth("/auth/logout", { method: "POST" });
+                                                } catch (err) {
+                                                    // ignore or log
+                                                } finally {
+                                                    localStorage.removeItem("access_token");
+                                                    localStorage.removeItem("refresh_token");
+                                                    navigate("/login", { replace: true });
+                                                }
                                             }}
                                             className="ml-14 mt-1 w-[calc(100%-3.5rem)] rounded-xl px-3 py-2 text-left text-sm font-medium border border-border bg-card text-error hover:bg-hover transition-all duration-200"
                                         >
